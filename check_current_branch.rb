@@ -35,7 +35,7 @@ class GitObject
 
   def initialize(sha1, level = 1)
     @sha1 = case sha1.size
-      when 20 then GitObject.sha1_as_40_character_string(sha1)
+      when 20 then GitObject.hex_string_sha1(sha1)
       when 40 then sha1
       else raise "Invalid SHA1 size (#{sha1.size})"
     end
@@ -63,8 +63,8 @@ class GitObject
     @loaded      = true
   end
 
-  def self.sha1_as_40_character_string(sha1)
-    sha1.split('').map { |c| "%02x" % c.ord }.join
+  def self.hex_string_sha1(byte_sha1)
+    byte_sha1.split('').map { |c| "%02x" % c.ord }.join
   end
 
   def validate
@@ -112,8 +112,8 @@ class Tree < GitObject
   def check_content
     super
 
-    items = @data.scan(/(\d+) .+?\0(.{20})/m).map do |mode, sha1|
-      raise "Unexpected mode #{mode}" unless MODES[mode]
+    items = @data.scan(/(\d+) (.+?)\0(.{20})/m).map do |mode, name, sha1|
+      raise "Unexpected mode #{mode} in file #{name}" unless MODES[mode]
 
       # Instantiate the object, based on its mode (Blob, Tree, ExecutableFile etc).
       Object.const_get(MODES[mode]).new sha1, @level
