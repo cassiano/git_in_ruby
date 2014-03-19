@@ -21,7 +21,9 @@ class GitObject
 
   @@cache = {}
 
-  def initialize(sha1)
+  def initialize(sha1, index = 1)
+    @index = index
+
     @sha1 = case sha1.size
       when 20 then GitObject.sha1_as_40_character_string(sha1)
       when 40 then sha1
@@ -52,7 +54,7 @@ class GitObject
   end
 
   def check
-    puts "Checking #{self.class.name} with SHA1 #{@sha1}..."
+    puts "[#{@index}] Checking #{self.class.name} with SHA1 #{@sha1}..."
 
     puts("Skipped!") and return unless @@cache[@sha1]
 
@@ -77,8 +79,8 @@ class Commit < GitObject
 
     lines = @data.split("\n")
 
-    tree    = Tree.new(lines.find { |line| line.split[0] == 'tree' }.split[1])
-    parents = lines.find_all { |line| line.split[0] == 'parent' }.map { |line| Commit.new line.split[1] }
+    tree    = Tree.new(lines.find { |line| line.split[0] == 'tree' }.split[1], @index)
+    parents = lines.find_all { |line| line.split[0] == 'parent' }.map { |line| Commit.new(line.split[1], @index + 1) }
 
     tree.check
     parents.each &:check
@@ -92,7 +94,7 @@ class Tree < GitObject
     items = @data.scan(/(\d+) .+?\0(.{20})/m).map do |mode, sha1|
       raise "Unexpected mode #{mode}" unless MODES[mode]
 
-      Object.const_get(MODES[mode]).new sha1
+      Object.const_get(MODES[mode]).new sha1, @index
     end
 
     items.each &:check
