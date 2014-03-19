@@ -6,6 +6,18 @@
 require 'digest/sha1'
 require 'zlib'
 
+class String
+  def underscore
+    word = self.dup
+    word.gsub!(/::/, '/')
+    word.gsub!(/([A-Z]+)([A-Z][a-z])/,'\1_\2')
+    word.gsub!(/([a-z\d])([A-Z])/,'\1_\2')
+    word.tr!("-", "_")
+    word.downcase!
+    word
+  end
+end
+
 class GitObject
   SHA1_SIZE_IN_BYTES = 20
 
@@ -19,16 +31,17 @@ class GitObject
     '100664' => 'GroupWriteableFile'
   }
 
-  @@cache = {}
+  @@processed_cache = {}
 
-  def initialize(sha1, index = 1)
-    @index = index
-
+  def initialize(sha1, level = 1)
     @sha1 = case sha1.size
       when 20 then GitObject.sha1_as_40_character_string(sha1)
       when 40 then sha1
       else raise "Invalid SHA1 size (#{sha1.size})"
     end
+
+    @level  = level
+    @loaded = false
   end
 
   def load
@@ -47,86 +60,92 @@ class GitObject
     @size        = size
     @data        = data
     @raw_content = raw_content
+    @loaded      = true
   end
 
   def self.sha1_as_40_character_string(sha1)
     sha1.split('').map { |c| "%02x" % c.ord }.join
   end
 
-  def check
-    puts "[#{@index}] Checking #{self.class.name} with SHA1 #{@sha1}..."
+  def validate
+    puts "[#{@level}] Validating #{self.class.name} with SHA1 #{@sha1}"
 
-    puts("Skipped!") and return unless @@cache[@sha1]
+    if !@@processed_cache[@sha1].nil?
+      puts "Skipped!"
+      return
+    end
 
-    load
-    check_common_data @type
+    check_content
 
-    @@cache[@sha1] = true
+    @@processed_cache[@sha1] = true
   end
 
-  protected
+  def check_content
+    load unless @loaded
 
-  def check_common_data(type)
-    raise ">>> Invalid type '#{@type}' (expected '#{type}')" unless @type == type
-    raise ">>> Invalid size #{@size} (expected #{@data.size})" unless @size == @data.size
-    raise ">>> Invalid SHA1 '#{Digest::SHA1.hexdigest(@raw_content)}' (expected '#{@sha1}')" unless Digest::SHA1.hexdigest(@raw_content) == @sha1
+    expected_types = (self.class.ancestors - [Object, Kernel, BasicObject]).map { |klass| klass.name.underscore }
+    expected_sha1  = Digest::SHA1.hexdigest(@raw_content)
+
+    raise ">>> Invalid type '#{@type}' (expected '#{expected_types.join(', ')}')" unless expected_types.include?(@type)
+    raise ">>> Invalid size #{@size} (expected #{@data.size})"                    unless @size == @data.size
+    raise ">>> Invalid SHA1 '#{@sha1}' (expected '#{expected_sha1}')"             unless @sha1 == expected_sha1
   end
 end
 
 class Commit < GitObject
-  def check
+  def check_content
     super
 
     lines = @data.split("\n")
 
-    tree    = Tree.new(lines.find { |line| line.split[0] == 'tree' }.split[1], @index)
-    parents = lines.find_all { |line| line.split[0] == 'parent' }.map { |line| Commit.new(line.split[1], @index + 1) }
+    tree    = Tree.new(lines.find { |line| line.split[0] == 'tree' }.split[1], @level)
+    parents = lines.find_all { |line| line.split[0] == 'parent' }.map { |line| Commit.new(line.split[1], @level + 1) }
 
-    tree.check
-    parents.each &:check
+    tree.validate
+    parents.each &:validate
   end
 end
 
 class Tree < GitObject
-  def check
+  def check_content
     super
 
     items = @data.scan(/(\d+) .+?\0(.{20})/m).map do |mode, sha1|
       raise "Unexpected mode #{mode}" unless MODES[mode]
 
-      Object.const_get(MODES[mode]).new sha1, @index
+      # Instantiate the object, based on its mode (Blob, Tree, ExecutableFile etc).
+      Object.const_get(MODES[mode]).new sha1, @level
     end
 
-    items.each &:check
+    items.each &:validate
   end
 end
 
 class Blob < GitObject
 end
 
-class ExecutableFile < GitObject
+class ExecutableFile < Blob
 end
 
-class SymLink < GitObject
-  def check
+class NonCheckableFiles < GitObject
+  def check_content
   end
 end
 
-class GitSubModule < GitObject
-  def check
-  end
+class SymLink < NonCheckableFiles
 end
 
-class GroupWriteableFile < GitObject
-  def check
-  end
+class GitSubModule < NonCheckableFiles
+end
+
+class GroupWriteableFile < NonCheckableFiles
 end
 
 def run!
   head_ref_path   = File.read(File.join('.git/HEAD')).chomp[/\Aref: (.*)/, 1]
   branch_tip_sha1 = File.read(File.join('.git', head_ref_path)).chomp
 
-  Commit.new(branch_tip_sha1).check
+  Commit.new(branch_tip_sha1).check_content
 end
 
 run! if __FILE__ == $0
