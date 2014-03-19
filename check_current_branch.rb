@@ -145,7 +145,7 @@ def run!
   head_ref_path   = File.read(File.join('.git/HEAD')).chomp[/\Aref: (.*)/, 1]
   branch_tip_sha1 = File.read(File.join('.git', head_ref_path)).chomp
 
-  Commit.new(branch_tip_sha1).check_content
+  Commit.new(branch_tip_sha1).validate
 end
 
 run! if __FILE__ == $0
