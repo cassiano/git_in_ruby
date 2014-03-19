@@ -20,7 +20,11 @@ class GitObject
   }
 
   def initialize(sha1)
-    @sha1 = sha1.size == 20 ? GitObject.sha1_as_40_character_string(sha1) : sha1
+    @sha1 = case sha1.size
+      when 20 then GitObject.sha1_as_40_character_string(sha1)
+      when 40 then sha1
+      else raise "Invalid SHA1 size (#{sha1.size})"
+    end
   end
 
   @@cache = {}
@@ -71,12 +75,11 @@ class Commit < GitObject
     end
 
     load
+    check_common_data 'commit'
 
     commit_data  = @data.split("\n")
     tree_sha1    = commit_data.find { |line| line.split[0] == 'tree' }.split[1]
     parents_sha1 = commit_data.find_all { |line| line.split[0] == 'parent' }.map { |line| line.split[1] }
-
-    check_common_data 'commit'
 
     Tree.new(tree_sha1).check
 
@@ -98,12 +101,9 @@ class Tree < GitObject
     end
 
     load
-
-    tree_data = @data.scan(/(\d+) .+?\0(.{20})/m).map { |mode, sha1| Object.const_get(MODES[mode]).new sha1 }
-
     check_common_data 'tree'
 
-    tree_data.each &:check
+    @data.scan(/(\d+) .+?\0(.{20})/m).each { |mode, sha1| Object.const_get(MODES[mode]).new(sha1).check }
 
     @@cache[:trees][@sha1] = true
   end
@@ -121,7 +121,6 @@ class Blob < GitObject
     end
 
     load
-
     check_common_data 'blob'
 
     @@cache[:blobs][@sha1] = true
