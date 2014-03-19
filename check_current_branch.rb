@@ -22,7 +22,7 @@ class GitObject
   SHA1_SIZE_IN_BYTES = 20
 
   # http://stackoverflow.com/questions/737673/how-to-read-the-mode-field-of-git-ls-trees-output
-  MODES = {
+  VALID_MODES = {
     '100644' => 'Blob',
     '40000'  => 'Tree',
     '100755' => 'ExecutableFile',
@@ -33,15 +33,15 @@ class GitObject
 
   @@processed_cache = {}
 
-  def initialize(sha1, level = 1)
+  def initialize(sha1, commit_level = 1)
     @sha1 = case sha1.size
       when 20 then GitObject.hex_string_sha1(sha1)
       when 40 then sha1
       else raise "Invalid SHA1 size (#{sha1.size})"
     end
 
-    @level  = level
-    @loaded = false
+    @commit_level = commit_level
+    @loaded       = false
   end
 
   def load
@@ -68,7 +68,7 @@ class GitObject
   end
 
   def validate
-    puts "[#{@level}] Validating #{self.class.name} with SHA1 #{@sha1}"
+    puts "[#{@commit_level}] Validating #{self.class.name} with SHA1 #{@sha1}"
 
     if !@@processed_cache[@sha1].nil?
       puts "Skipped!"
@@ -100,8 +100,8 @@ class Commit < GitObject
 
     lines = @data.split("\n")
 
-    tree    = Tree.new(lines.find { |line| line.split[0] == 'tree' }.split[1], @level)
-    parents = lines.find_all { |line| line.split[0] == 'parent' }.map { |line| Commit.new(line.split[1], @level + 1) }
+    tree    = Tree.new(lines.find { |line| line.split[0] == 'tree' }.split[1], @commit_level)
+    parents = lines.find_all { |line| line.split[0] == 'parent' }.map { |line| Commit.new(line.split[1], @commit_level + 1) }
 
     tree.validate
     parents.each &:validate
@@ -113,10 +113,10 @@ class Tree < GitObject
     super
 
     items = @data.scan(/(\d+) (.+?)\0(.{20})/m).map do |mode, name, sha1|
-      raise "Invalid mode #{mode} in file '#{name}'" unless MODES[mode]
+      raise "Invalid mode #{mode} in file '#{name}'" unless VALID_MODES[mode]
 
       # Instantiate the object, based on its mode (Blob, Tree, ExecutableFile etc).
-      Object.const_get(MODES[mode]).new sha1, @level
+      Object.const_get(VALID_MODES[mode]).new sha1, @commit_level
     end
 
     items.each &:validate
