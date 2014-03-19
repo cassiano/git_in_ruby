@@ -80,6 +80,8 @@ class GitObject
     @@processed_cache[@sha1] = true
   end
 
+  protected
+
   def check_content
     load unless @loaded
 
