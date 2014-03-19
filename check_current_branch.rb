@@ -47,7 +47,7 @@ class GitObject
   def load
     path = File.join('.git/objects/', @sha1[0, 2], @sha1[2, SHA1_SIZE_IN_BYTES * 2 - 2])
 
-    raise ">>> File #{path} not found" unless File.exists?(path)
+    raise ">>> File '#{path}' not found (have you unpacked all pack files?)" unless File.exists?(path)
 
     zlib_content = File.read(path)
     raw_content  = Zlib::Inflate.inflate(zlib_content)
@@ -88,9 +88,9 @@ class GitObject
     expected_types = (self.class.ancestors - [Object, Kernel, BasicObject]).map { |klass| klass.name.underscore }
     expected_sha1  = Digest::SHA1.hexdigest(@raw_content)
 
-    raise ">>> Invalid type '#{@type}' (expected '#{expected_types.join(', ')}')" unless expected_types.include?(@type)
-    raise ">>> Invalid size #{@size} (expected #{@data.size})"                    unless @size == @data.size
-    raise ">>> Invalid SHA1 '#{@sha1}' (expected '#{expected_sha1}')"             unless @sha1 == expected_sha1
+    raise ">>> Invalid type '#{@type}' (expected one of [#{expected_types.join(', ')}])"  unless expected_types.include?(@type)
+    raise ">>> Invalid size #{@size} (expected #{@data.size})"                            unless @size == @data.size
+    raise ">>> Invalid SHA1 '#{@sha1}' (expected '#{expected_sha1}')"                     unless @sha1 == expected_sha1
   end
 end
 
@@ -113,7 +113,7 @@ class Tree < GitObject
     super
 
     items = @data.scan(/(\d+) (.+?)\0(.{20})/m).map do |mode, name, sha1|
-      raise "Unexpected mode #{mode} in file #{name}" unless MODES[mode]
+      raise "Invalid mode #{mode} in file '#{name}'" unless MODES[mode]
 
       # Instantiate the object, based on its mode (Blob, Tree, ExecutableFile etc).
       Object.const_get(MODES[mode]).new sha1, @level
