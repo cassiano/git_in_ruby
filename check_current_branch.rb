@@ -13,11 +13,13 @@ class GitObject
   MODES = {
     '100644' => 'Blob',
     '40000'  => 'Tree',
-    '100755' => 'Blob',         # Executable file
-    '120000' => 'GitObject',    # Symbolic link
-    '160000' => 'GitObject',    # Git submodule
-    '100664' => 'GitObject'     # Group writeable file
+    '100755' => 'ExecutableFile',
+    '120000' => 'SymLink',
+    '160000' => 'GitSubModule',
+    '100664' => 'GroupWriteableFile'
   }
+
+  @@cache = {}
 
   def initialize(sha1)
     @sha1 = case sha1.size
@@ -26,8 +28,6 @@ class GitObject
       else raise "Invalid SHA1 size (#{sha1.size})"
     end
   end
-
-  @@cache = {}
 
   def load
     path = File.join('.git/objects/', @sha1[0, 2], @sha1[2, SHA1_SIZE_IN_BYTES * 2 - 2])
@@ -52,78 +52,71 @@ class GitObject
   end
 
   def check
+    puts "Checking #{self.class.name} with SHA1 #{@sha1}..."
+
+    puts("Skipped!") and return unless @@cache[@sha1]
+
+    load
+    check_common_data @type
+
+    @@cache[@sha1] = true
   end
 
   protected
 
   def check_common_data(type)
-    raise ">>> Invalid type '#{commit[0]}' (expected '#{type}')" unless @type == type
+    raise ">>> Invalid type '#{@type}' (expected '#{type}')" unless @type == type
     raise ">>> Invalid size #{@size} (expected #{@data.size})" unless @size == @data.size
     raise ">>> Invalid SHA1 '#{Digest::SHA1.hexdigest(@raw_content)}' (expected '#{@sha1}')" unless Digest::SHA1.hexdigest(@raw_content) == @sha1
   end
 end
 
 class Commit < GitObject
-  @@cache[:commits] = {}
-
   def check
-    puts "Checking commit #{@sha1}..."
+    super
 
-    if @@cache[:commits][@sha1]
-      puts "Skipped!"
-      return
-    end
+    lines = @data.split("\n")
 
-    load
-    check_common_data 'commit'
+    tree    = Tree.new(lines.find { |line| line.split[0] == 'tree' }.split[1])
+    parents = lines.find_all { |line| line.split[0] == 'parent' }.map { |line| Commit.new line.split[1] }
 
-    commit_data  = @data.split("\n")
-    tree_sha1    = commit_data.find { |line| line.split[0] == 'tree' }.split[1]
-    parents_sha1 = commit_data.find_all { |line| line.split[0] == 'parent' }.map { |line| line.split[1] }
-
-    Tree.new(tree_sha1).check
-
-    parents_sha1.each { |sha1| Commit.new(sha1).check }
-
-    @@cache[:commits][@sha1] = true
+    tree.check
+    parents.each &:check
   end
 end
 
 class Tree < GitObject
-  @@cache[:trees] = {}
-
   def check
-    puts "Checking tree #{@sha1}..."
+    super
 
-    if @@cache[:trees][@sha1]
-      puts "Skipped!"
-      return
+    items = @data.scan(/(\d+) .+?\0(.{20})/m).map do |mode, sha1|
+      raise "Unexpected mode #{mode}" unless MODES[mode]
+
+      Object.const_get(MODES[mode]).new sha1
     end
 
-    load
-    check_common_data 'tree'
-
-    @data.scan(/(\d+) .+?\0(.{20})/m).each { |mode, sha1| Object.const_get(MODES[mode]).new(sha1).check }
-
-    @@cache[:trees][@sha1] = true
+    items.each &:check
   end
 end
 
 class Blob < GitObject
-  @@cache[:blobs] = {}
+end
 
+class ExecutableFile < GitObject
+end
+
+class SymLink < GitObject
   def check
-    puts "Checking blob #{@sha1}..."
+  end
+end
 
-    if @@cache[:blobs][@sha1]
-      puts "Skipped!"
-      return
-    end
+class GitSubModule < GitObject
+  def check
+  end
+end
 
-    load
-    check_common_data 'blob'
-
-    @@cache[:blobs][@sha1] = true
+class GroupWriteableFile < GitObject
+  def check
   end
 end
 
