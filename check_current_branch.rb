@@ -48,7 +48,7 @@ class GitObject
     @commit_level = commit_level
     @validated    = false
 
-    load
+    load_from_file_system
   end
 
   def self.hex_string_sha1(byte_sha1)
@@ -69,7 +69,7 @@ class GitObject
 
   protected
 
-  def load
+  def load_from_file_system
     path = File.join('.git/objects/', @sha1[0, 2], @sha1[2, SHA1_SIZE_IN_BYTES * 2 - 2])
 
     raise "\n>>> File '#{path}' not found! Have you unpacked all pack files?" unless File.exists?(path)
@@ -88,7 +88,7 @@ class GitObject
   end
 
   def check_content
-    expected_types = (self.class.ancestors - [Object, Kernel, BasicObject]).map { |klass| klass.name.underscore }
+    expected_types = (self.class.ancestors - GitObject.ancestors).map { |klass| klass.name.underscore }
 
     raise "\n>>> Invalid type '#{@type}' (expected one of [#{expected_types.join(', ')}])"  unless expected_types.include?(@type)
     raise "\n>>> Invalid size #{@size} (expected #{@data_size})"                            unless @size == @data_size
@@ -103,16 +103,17 @@ class Commit < GitObject
     lines = @data.split("\n")
 
     tree_sha1 = lines.find { |line| line.split[0] == 'tree' }.split[1]
-    tree      = Tree.find_or_initialize_by(tree_sha1, @commit_level)
 
-    parents = lines.find_all { |line| line.split[0] == 'parent' }.map do |line|
+    @tree = Tree.find_or_initialize_by(tree_sha1, @commit_level)
+
+    @parents = lines.find_all { |line| line.split[0] == 'parent' }.map do |line|
       commit_sha1 = line.split[1]
 
       Commit.find_or_initialize_by commit_sha1, @commit_level + 1
     end
 
-    tree.validate
-    parents.each &:validate
+    @tree.validate
+    @parents.each &:validate
   end
 end
 
@@ -121,7 +122,7 @@ class Tree < GitObject
     super
 
     # TODO: check how to match hex values from 00 to FF (in raw form, from 0 to 255) in a regexp.
-    items = @data.scan(/(\d+) (.+?)\0(.{20})/m).map do |mode, name, sha1|
+    @entries = @data.scan(/(\d+) (.+?)\0(.{20})/m).map do |mode, name, sha1|
       raise "\n>>> Invalid mode #{mode} in file '#{name}'" unless VALID_MODES[mode]
 
       print "\n  #{name}"
@@ -130,7 +131,7 @@ class Tree < GitObject
       Object.const_get(VALID_MODES[mode]).find_or_initialize_by sha1, @commit_level
     end
 
-    items.each &:validate
+    @entries.each &:validate
   end
 end
 
