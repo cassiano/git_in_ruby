@@ -37,7 +37,7 @@ class GitObject
     sha1 = case sha1.size
       when 20 then hex_string_sha1(sha1)
       when 40 then sha1
-      else raise "Invalid SHA1 size (#{sha1.size})"
+      else raise "\n>>> Invalid SHA1 size (#{sha1.size})"
     end
 
     @@instances[sha1] ||= new(sha1, commit_level)
@@ -56,10 +56,10 @@ class GitObject
   end
 
   def validate
-    puts "[#{@commit_level}] Validating #{self.class.name} with SHA1 #{@sha1}"
+    print "\n(#{@commit_level}) Validating #{self.class.name} with SHA1 #{@sha1} "
 
     if @validated
-      puts "Skipped!"
+      print "[skipped]"
     else
       check_content
 
@@ -72,7 +72,7 @@ class GitObject
   def load
     path = File.join('.git/objects/', @sha1[0, 2], @sha1[2, SHA1_SIZE_IN_BYTES * 2 - 2])
 
-    raise ">>> File '#{path}' not found! Have you unpacked all pack files?" unless File.exists?(path)
+    raise "\n>>> File '#{path}' not found! Have you unpacked all pack files?" unless File.exists?(path)
 
     zlib_content = File.read(path)
     raw_content  = Zlib::Inflate.inflate(zlib_content)
@@ -90,9 +90,9 @@ class GitObject
   def check_content
     expected_types = (self.class.ancestors - [Object, Kernel, BasicObject]).map { |klass| klass.name.underscore }
 
-    raise ">>> Invalid type '#{@type}' (expected one of [#{expected_types.join(', ')}])"  unless expected_types.include?(@type)
-    raise ">>> Invalid size #{@size} (expected #{@data_size})"                            unless @size == @data_size
-    raise ">>> Invalid SHA1 '#{@sha1}' (expected '#{@raw_content_sha1}')"                 unless @sha1 == @raw_content_sha1
+    raise "\n>>> Invalid type '#{@type}' (expected one of [#{expected_types.join(', ')}])"  unless expected_types.include?(@type)
+    raise "\n>>> Invalid size #{@size} (expected #{@data_size})"                            unless @size == @data_size
+    raise "\n>>> Invalid SHA1 '#{@sha1}' (expected '#{@raw_content_sha1}')"                 unless @sha1 == @raw_content_sha1
   end
 end
 
@@ -122,9 +122,9 @@ class Tree < GitObject
 
     # TODO: check how to match hex values from 00 to FF (in raw form, from 0 to 255) in a regexp.
     items = @data.scan(/(\d+) (.+?)\0(.{20})/m).map do |mode, name, sha1|
-      raise "Invalid mode #{mode} in file '#{name}'" unless VALID_MODES[mode]
+      raise "\n>>> Invalid mode #{mode} in file '#{name}'" unless VALID_MODES[mode]
 
-      puts "  #{name}"
+      print "\n  #{name}"
 
       # Instantiate the object, based on its mode (Blob, Tree, ExecutableFile etc).
       Object.const_get(VALID_MODES[mode]).find_or_initialize_by sha1, @commit_level
