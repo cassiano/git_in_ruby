@@ -79,21 +79,20 @@ class GitObject
     header       = raw_content.split("\0")[0]
     data         = raw_content[(header.size + 1)..-1]
     type, size   = header.split
-    size         = size.to_i
 
-    @type        = type
-    @size        = size
-    @data        = data
-    @raw_content = raw_content
+    @type             = type
+    @size             = size.to_i
+    @raw_content_sha1 = Digest::SHA1.hexdigest(raw_content)
+    @data             = data if [:commit, :tree].include?(type.to_sym)
+    @data_size        = data.size
   end
 
   def check_content
     expected_types = (self.class.ancestors - [Object, Kernel, BasicObject]).map { |klass| klass.name.underscore }
-    expected_sha1  = Digest::SHA1.hexdigest(@raw_content)
 
     raise ">>> Invalid type '#{@type}' (expected one of [#{expected_types.join(', ')}])"  unless expected_types.include?(@type)
-    raise ">>> Invalid size #{@size} (expected #{@data.size})"                            unless @size == @data.size
-    raise ">>> Invalid SHA1 '#{@sha1}' (expected '#{expected_sha1}')"                     unless @sha1 == expected_sha1
+    raise ">>> Invalid size #{@size} (expected #{@data_size})"                            unless @size == @data_size
+    raise ">>> Invalid SHA1 '#{@sha1}' (expected '#{@raw_content_sha1}')"                 unless @sha1 == @raw_content_sha1
   end
 end
 
@@ -103,10 +102,13 @@ class Commit < GitObject
 
     lines = @data.split("\n")
 
-    tree = Tree.find_or_initialize_by(lines.find { |line| line.split[0] == 'tree' }.split[1], @commit_level)
+    tree_sha1 = lines.find { |line| line.split[0] == 'tree' }.split[1]
+    tree      = Tree.find_or_initialize_by(tree_sha1, @commit_level)
 
     parents = lines.find_all { |line| line.split[0] == 'parent' }.map do |line|
-      Commit.find_or_initialize_by line.split[1], @commit_level + 1
+      commit_sha1 = line.split[1]
+
+      Commit.find_or_initialize_by commit_sha1, @commit_level + 1
     end
 
     tree.validate
@@ -118,8 +120,11 @@ class Tree < GitObject
   def check_content
     super
 
+    # TODO: check how to match hex values from 00 to FF (in raw form, from 0 to 255) in a regexp.
     items = @data.scan(/(\d+) (.+?)\0(.{20})/m).map do |mode, name, sha1|
       raise "Invalid mode #{mode} in file '#{name}'" unless VALID_MODES[mode]
+
+      puts "  #{name}"
 
       # Instantiate the object, based on its mode (Blob, Tree, ExecutableFile etc).
       Object.const_get(VALID_MODES[mode]).find_or_initialize_by sha1, @commit_level
