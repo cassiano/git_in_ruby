@@ -142,7 +142,10 @@ class ExecutableFile < Blob
 end
 
 class NonCheckableFiles < GitObject
-  def check_content
+  def initialize(sha1, commit_level)
+    @sha1         = sha1
+    @commit_level = commit_level
+    @validated    = true
   end
 end
 
