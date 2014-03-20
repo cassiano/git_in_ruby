@@ -31,23 +31,48 @@ class GitObject
     '100664' => 'GroupWriteableFile'
   }
 
-  @@processed_cache = {}
+  @@instances = {}
 
-  def initialize(sha1, commit_level = 1)
-    @sha1 = case sha1.size
-      when 20 then GitObject.hex_string_sha1(sha1)
+  def self.find_or_initialize_by(sha1, commit_level = 1)
+    sha1 = case sha1.size
+      when 20 then hex_string_sha1(sha1)
       when 40 then sha1
       else raise "Invalid SHA1 size (#{sha1.size})"
     end
 
-    @commit_level = commit_level
-    @loaded       = false
+    @@instances[sha1] ||= new(sha1, commit_level)
   end
+
+  def initialize(sha1, commit_level)
+    @sha1         = sha1
+    @commit_level = commit_level
+    @validated    = false
+
+    load
+  end
+
+  def self.hex_string_sha1(byte_sha1)
+    byte_sha1.split('').map { |c| "%02x" % c.ord }.join
+  end
+
+  def validate
+    puts "[#{@commit_level}] Validating #{self.class.name} with SHA1 #{@sha1}"
+
+    if @validated
+      puts "Skipped!"
+    else
+      check_content
+
+      @validated = true
+    end
+  end
+
+  protected
 
   def load
     path = File.join('.git/objects/', @sha1[0, 2], @sha1[2, SHA1_SIZE_IN_BYTES * 2 - 2])
 
-    raise ">>> File '#{path}' not found (have you unpacked all pack files?)" unless File.exists?(path)
+    raise ">>> File '#{path}' not found! Have you unpacked all pack files?" unless File.exists?(path)
 
     zlib_content = File.read(path)
     raw_content  = Zlib::Inflate.inflate(zlib_content)
@@ -60,31 +85,9 @@ class GitObject
     @size        = size
     @data        = data
     @raw_content = raw_content
-    @loaded      = true
   end
-
-  def self.hex_string_sha1(byte_sha1)
-    byte_sha1.split('').map { |c| "%02x" % c.ord }.join
-  end
-
-  def validate
-    puts "[#{@commit_level}] Validating #{self.class.name} with SHA1 #{@sha1}"
-
-    if !@@processed_cache[@sha1].nil?
-      puts "Skipped!"
-      return
-    end
-
-    check_content
-
-    @@processed_cache[@sha1] = true
-  end
-
-  protected
 
   def check_content
-    load unless @loaded
-
     expected_types = (self.class.ancestors - [Object, Kernel, BasicObject]).map { |klass| klass.name.underscore }
     expected_sha1  = Digest::SHA1.hexdigest(@raw_content)
 
@@ -100,8 +103,11 @@ class Commit < GitObject
 
     lines = @data.split("\n")
 
-    tree    = Tree.new(lines.find { |line| line.split[0] == 'tree' }.split[1], @commit_level)
-    parents = lines.find_all { |line| line.split[0] == 'parent' }.map { |line| Commit.new(line.split[1], @commit_level + 1) }
+    tree = Tree.find_or_initialize_by(lines.find { |line| line.split[0] == 'tree' }.split[1], @commit_level)
+
+    parents = lines.find_all { |line| line.split[0] == 'parent' }.map do |line|
+      Commit.find_or_initialize_by line.split[1], @commit_level + 1
+    end
 
     tree.validate
     parents.each &:validate
@@ -116,7 +122,7 @@ class Tree < GitObject
       raise "Invalid mode #{mode} in file '#{name}'" unless VALID_MODES[mode]
 
       # Instantiate the object, based on its mode (Blob, Tree, ExecutableFile etc).
-      Object.const_get(VALID_MODES[mode]).new sha1, @commit_level
+      Object.const_get(VALID_MODES[mode]).find_or_initialize_by sha1, @commit_level
     end
 
     items.each &:validate
@@ -147,7 +153,7 @@ def run!
   head_ref_path   = File.read(File.join('.git/HEAD')).chomp[/\Aref: (.*)/, 1]
   branch_tip_sha1 = File.read(File.join('.git', head_ref_path)).chomp
 
-  Commit.new(branch_tip_sha1).validate
+  Commit.find_or_initialize_by(branch_tip_sha1).validate
 end
 
 run! if __FILE__ == $0
