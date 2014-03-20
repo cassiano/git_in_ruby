@@ -60,11 +60,12 @@ class GitObject
 
     if @validated
       print "[skipped]"
-    else
-      check_content
-
-      @validated = true
+      return
     end
+
+    check_content
+
+    @validated = true
   end
 
   protected
@@ -74,11 +75,12 @@ class GitObject
 
     raise "\n>>> File '#{path}' not found! Have you unpacked all pack files?" unless File.exists?(path)
 
-    zlib_content = File.read(path)
-    raw_content  = Zlib::Inflate.inflate(zlib_content)
-    header       = raw_content.split("\0")[0]
-    data         = raw_content[(header.size + 1)..-1]
-    type, size   = header.split
+    zlib_content          = File.read(path)
+    raw_content           = Zlib::Inflate.inflate(zlib_content)
+    first_null_byte_index = raw_content.index("\0")
+    header                = raw_content[0...first_null_byte_index]
+    data                  = raw_content[(first_null_byte_index + 1)..-1]
+    type, size            = header.split
 
     @type             = type
     @size             = size.to_i
@@ -141,7 +143,7 @@ end
 class ExecutableFile < Blob
 end
 
-class NonCheckableFiles < GitObject
+class SkippedFile < Blob
   def initialize(sha1, commit_level)
     @sha1         = sha1
     @commit_level = commit_level
@@ -149,13 +151,13 @@ class NonCheckableFiles < GitObject
   end
 end
 
-class SymLink < NonCheckableFiles
+class SymLink < SkippedFile
 end
 
-class GitSubModule < NonCheckableFiles
+class GitSubModule < SkippedFile
 end
 
-class GroupWriteableFile < NonCheckableFiles
+class GroupWriteableFile < SkippedFile
 end
 
 def run!
