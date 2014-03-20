@@ -104,7 +104,11 @@ class Commit < GitObject
 
     lines = @data.split("\n")
 
-    tree_sha1 = lines.find { |line| line.split[0] == 'tree' }.split[1]
+    if (tree_line = lines.find { |line| line.split[0] == 'tree' })
+      tree_sha1 = tree_line.split[1]
+    else
+      raise "\n>>> Missing required tree in commit."
+    end
 
     @tree = Tree.find_or_initialize_by(tree_sha1, @commit_level)
 
@@ -147,7 +151,9 @@ class SkippedFile < Blob
   def initialize(sha1, commit_level)
     @sha1         = sha1
     @commit_level = commit_level
-    @validated    = true
+
+    # Indicate the file has already been validated, so it can be safely skipped.
+    @validated = true
   end
 end
 
