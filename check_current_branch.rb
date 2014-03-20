@@ -52,7 +52,7 @@ class GitObject
   end
 
   def self.hex_string_sha1(byte_sha1)
-    byte_sha1.split('').map { |c| "%02x" % c.ord }.join
+    byte_sha1.bytes.map { |b| "%02x" % b }.join
   end
 
   def validate
