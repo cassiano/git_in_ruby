@@ -23,8 +23,8 @@ class GitObject
 
   # http://stackoverflow.com/questions/737673/how-to-read-the-mode-field-of-git-ls-trees-output
   VALID_MODES = {
-    '100644' => 'Blob',
     '40000'  => 'Tree',
+    '100644' => 'Blob',
     '100755' => 'ExecutableFile',
     '120000' => 'SymLink',
     '160000' => 'GitSubModule',
