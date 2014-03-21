@@ -37,14 +37,23 @@ class GitRepository
     @project_path = project_path
   end
 
-  def head_commit_sha1
-    head_ref_path = File.read(File.join(project_path, '.git', 'HEAD')).chomp[/\Aref: (.*)/, 1]
-
-    File.read(File.join(project_path, '.git', head_ref_path)).chomp
+  def head_commit
+    @head_commit ||= Commit.find_or_initialize_by self, head_commit_sha1
   end
 
-  def read_object_content(git_object)
-    path = File.join(project_path, '.git', 'objects', git_object.sha1[0, 2], git_object.sha1[2, SHA1_SIZE_IN_BYTES * 2 - 2])
+  def head_commit_sha1
+    @head_commit_sha1 ||= begin
+      head_ref_path = File.read(File.join(project_path, '.git', 'HEAD')).chomp[/\Aref: (.*)/, 1]
+      File.read(File.join(project_path, '.git', head_ref_path)).chomp
+    end
+  end
+
+  def head_fsck!
+    head_commit.validate
+  end
+
+  def read_object_content(sha1)
+    path = File.join(project_path, '.git', 'objects', sha1[0, 2], sha1[2, SHA1_SIZE_IN_BYTES * 2 - 2])
 
     raise MissingObjectError.new("\n>>> File '#{path}' not found! Have you unpacked all pack files?") unless File.exists?(path)
 
@@ -55,16 +64,7 @@ class GitRepository
     data                  = raw_content[(first_null_byte_index + 1)..-1]
     type, size            = header.split
 
-    git_object.type             = type
-    git_object.size             = size.to_i
-    git_object.raw_content_sha1 = Digest::SHA1.hexdigest(raw_content)
-    git_object.data             = data if [:commit, :tree].include?(type.to_sym)
-    git_object.data_size        = data.size
-  end
-
-  def head_fsck
-    head_commit = Commit.find_or_initialize_by(self, self.head_commit_sha1)
-    head_commit.validate
+    [type, size.to_i, Digest::SHA1.hexdigest(raw_content), [:commit, :tree].include?(type.to_sym) && data, data.size]
   end
 end
 
@@ -104,7 +104,7 @@ class GitObject
     @commit_level = commit_level
     @validated    = false
 
-    repository.read_object_content self
+    @type, @size, @raw_content_sha1, @data, @data_size = repository.read_object_content(sha1)
   end
 
   def validate
@@ -198,7 +198,7 @@ end
 
 def run!(project_path)
   repository = GitRepository.new(project_path)
-  repository.head_fsck
+  repository.head_fsck!
 end
 
 run! ARGV[0] || '.' if __FILE__ == $0

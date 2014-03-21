@@ -21,7 +21,6 @@ def sha1_as_20_byte_string(sha1)
   (1..20).map { |i| sha1[(i - 1) * 2, 2].to_i(16).chr }.join
 end
 
-
 ####################
 # Create 1st commit.
 ####################
