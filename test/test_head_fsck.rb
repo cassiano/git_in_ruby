@@ -4,7 +4,7 @@ require 'turn/autorun'
 
 class TestFsck < Test::Unit::TestCase
   setup do
-    @git_repositories_folder = File.join(File.dirname(File.expand_path(__FILE__)), 'git_repositories/')
+    @git_repositories_folder = File.join(File.dirname(File.expand_path(__FILE__)), 'git_repositories')
   end
 
   test 'checks for invalid mode' do
