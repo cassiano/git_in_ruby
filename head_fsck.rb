@@ -38,7 +38,7 @@ class GitRepository
   end
 
   def head_commit
-    @head_commit ||= Commit.find_or_initialize_by self, head_commit_sha1
+    @head_commit ||= Commit.find_or_initialize_by(self, head_commit_sha1)
   end
 
   def head_commit_sha1
