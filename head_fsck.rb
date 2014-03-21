@@ -181,12 +181,11 @@ class ExecutableFile < Blob
 end
 
 class SkippedFile < Blob
-  def initialize(sha1, commit_level)
+  def initialize(repository, sha1, commit_level)
+    @repository   = repository
     @sha1         = sha1
     @commit_level = commit_level
-
-    # Indicate the file has already been validated, so it can be safely skipped.
-    @validated = true
+    @validated    = true          # Indicate the file has already been validated, so it can be safely skipped.
   end
 end
 
