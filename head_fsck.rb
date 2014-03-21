@@ -1,3 +1,5 @@
+#!/usr/bin/env ruby
+
 # To make sure all objects are "loose":
 #
 # 1) Move all pack files to a temp folder
