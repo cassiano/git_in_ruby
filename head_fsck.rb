@@ -66,16 +66,16 @@ class GitObject
     @@instances[sha1] ||= new(sha1, commit_level)
   end
 
+  def self.hex_string_sha1(byte_sha1)
+    byte_sha1.bytes.map { |b| "%02x" % b }.join
+  end
+
   def initialize(sha1, commit_level)
     @sha1         = sha1
     @commit_level = commit_level
     @validated    = false
 
     load_from_file_system
-  end
-
-  def self.hex_string_sha1(byte_sha1)
-    byte_sha1.bytes.map { |b| "%02x" % b }.join
   end
 
   def validate
@@ -91,7 +91,7 @@ class GitObject
     @validated = true
   end
 
-  protected
+  private
 
   def load_from_file_system
     path = File.join(GitObject.project_path, '.git/objects/', @sha1[0, 2], @sha1[2, SHA1_SIZE_IN_BYTES * 2 - 2])
@@ -119,10 +119,7 @@ class GitObject
     raise InvalidSizeError.new("\n>>> Invalid size #{@size} (expected #{@data_size})") unless @size == @data_size
     raise InvalidSha1Error.new("\n>>> Invalid SHA1 '#{@sha1}' (expected '#{@raw_content_sha1}')") unless @sha1 == @raw_content_sha1
 
-    check_data
-  end
-
-  def check_data
+    check_data if respond_to?(:check_data)
   end
 end
 
