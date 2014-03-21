@@ -20,10 +20,7 @@ class String
   end
 end
 
-###############################
 # List of possible exceptions.
-###############################
-
 class InvalidModeError          < StandardError; end
 class InvalidSha1Error          < StandardError; end
 class InvalidSizeError          < StandardError; end
@@ -126,9 +123,10 @@ class GitObject
   private
 
   def check_content
-    expected_types = (self.class.ancestors - GitObject.ancestors).map { |klass| klass.name.underscore }
+    # Locate the ancestor class which is the immediate subclass of GitObject in the hierarchy chain (one of: Blob, Commit or Tree).
+    expected_type = (self.class.ancestors.find { |klass| klass.superclass == GitObject }).name.underscore
 
-    raise InvalidTypeError.new("\n>>> Invalid type '#{@type}' (expected one of [#{expected_types.join(', ')}])") unless expected_types.include?(@type)
+    raise InvalidTypeError.new("\n>>> Invalid type '#{@type}' (expected '#{expected_type}')") unless @type == expected_type
     raise InvalidSizeError.new("\n>>> Invalid size #{@size} (expected #{@data_size})") unless @size == @data_size
     raise InvalidSha1Error.new("\n>>> Invalid SHA1 '#{@sha1}' (expected '#{@raw_content_sha1}')") unless @sha1 == @raw_content_sha1
 
