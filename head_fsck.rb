@@ -116,13 +116,16 @@ class GitObject
     raise InvalidTypeError.new("\n>>> Invalid type '#{@type}' (expected one of [#{expected_types.join(', ')}])") unless expected_types.include?(@type)
     raise InvalidSizeError.new("\n>>> Invalid size #{@size} (expected #{@data_size})") unless @size == @data_size
     raise InvalidSha1Error.new("\n>>> Invalid SHA1 '#{@sha1}' (expected '#{@raw_content_sha1}')") unless @sha1 == @raw_content_sha1
+
+    check_data
+  end
+
+  def check_data
   end
 end
 
 class Commit < GitObject
-  def check_content
-    super
-
+  def check_data
     lines = @data.split("\n")
 
     if (tree_line = lines.find { |line| line.split[0] == 'tree' })
@@ -145,9 +148,7 @@ class Commit < GitObject
 end
 
 class Tree < GitObject
-  def check_content
-    super
-
+  def check_data
     @entries = @data.scan(/(\d+) (.+?)\0([\x00-\xFF]{20})/).map do |mode, name, sha1|
       raise InvalidModeError.new("\n>>> Invalid mode #{mode} in file '#{name}'") unless VALID_MODES[mode]
 
@@ -186,7 +187,7 @@ end
 class GroupWriteableFile < SkippedFile
 end
 
-def fsck(project_path = '.')
+def head_fsck(project_path = '.')
   GitObject.project_path = project_path
 
   branch_tip_sha1 = GitObject.read_branch_tip_sha1
@@ -195,4 +196,4 @@ def fsck(project_path = '.')
   latest_commit.validate
 end
 
-fsck ARGV[0] || '.' if __FILE__ == $0
+head_fsck ARGV[0] || '.' if __FILE__ == $0
