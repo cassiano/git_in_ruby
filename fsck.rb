@@ -18,7 +18,22 @@ class String
   end
 end
 
+###############################
+# List of possible exceptions.
+###############################
+
+class InvalidModeError          < StandardError; end
+class InvalidSha1Error          < StandardError; end
+class InvalidSizeError          < StandardError; end
+class InvalidTypeError          < StandardError; end
+class MissingObjectError        < StandardError; end
+class MissingTreeInCommitError  < StandardError; end
+
 class GitObject
+  class << self
+    attr_accessor :project_path
+  end
+
   SHA1_SIZE_IN_BYTES = 20
 
   # http://stackoverflow.com/questions/737673/how-to-read-the-mode-field-of-git-ls-trees-output
@@ -32,6 +47,12 @@ class GitObject
   }
 
   @@instances = {}
+
+  def self.read_branch_tip_sha1
+    head_ref_path = File.read(File.join(project_path, '.git/HEAD')).chomp[/\Aref: (.*)/, 1]
+
+    File.read(File.join(project_path, '.git', head_ref_path)).chomp
+  end
 
   def self.find_or_initialize_by(sha1, commit_level = 1)
     sha1 = case sha1.size
@@ -71,9 +92,9 @@ class GitObject
   protected
 
   def load_from_file_system
-    path = File.join('.git/objects/', @sha1[0, 2], @sha1[2, SHA1_SIZE_IN_BYTES * 2 - 2])
+    path = File.join(GitObject.project_path, '.git/objects/', @sha1[0, 2], @sha1[2, SHA1_SIZE_IN_BYTES * 2 - 2])
 
-    raise "\n>>> File '#{path}' not found! Have you unpacked all pack files?" unless File.exists?(path)
+    raise MissingObjectError.new("\n>>> File '#{path}' not found! Have you unpacked all pack files?") unless File.exists?(path)
 
     zlib_content          = File.read(path)
     raw_content           = Zlib::Inflate.inflate(zlib_content)
@@ -92,9 +113,9 @@ class GitObject
   def check_content
     expected_types = (self.class.ancestors - GitObject.ancestors).map { |klass| klass.name.underscore }
 
-    raise "\n>>> Invalid type '#{@type}' (expected one of [#{expected_types.join(', ')}])"  unless expected_types.include?(@type)
-    raise "\n>>> Invalid size #{@size} (expected #{@data_size})"                            unless @size == @data_size
-    raise "\n>>> Invalid SHA1 '#{@sha1}' (expected '#{@raw_content_sha1}')"                 unless @sha1 == @raw_content_sha1
+    raise InvalidTypeError.new("\n>>> Invalid type '#{@type}' (expected one of [#{expected_types.join(', ')}])") unless expected_types.include?(@type)
+    raise InvalidSizeError.new("\n>>> Invalid size #{@size} (expected #{@data_size})") unless @size == @data_size
+    raise InvalidSha1Error.new("\n>>> Invalid SHA1 '#{@sha1}' (expected '#{@raw_content_sha1}')") unless @sha1 == @raw_content_sha1
   end
 end
 
@@ -107,7 +128,7 @@ class Commit < GitObject
     if (tree_line = lines.find { |line| line.split[0] == 'tree' })
       tree_sha1 = tree_line.split[1]
     else
-      raise "\n>>> Missing required tree in commit."
+      raise MissingTreeInCommitError.new("\n>>> Missing required tree in commit.")
     end
 
     @tree = Tree.find_or_initialize_by(tree_sha1, @commit_level)
@@ -128,7 +149,7 @@ class Tree < GitObject
     super
 
     @entries = @data.scan(/(\d+) (.+?)\0([\x00-\xFF]{20})/).map do |mode, name, sha1|
-      raise "\n>>> Invalid mode #{mode} in file '#{name}'" unless VALID_MODES[mode]
+      raise InvalidModeError.new("\n>>> Invalid mode #{mode} in file '#{name}'") unless VALID_MODES[mode]
 
       print "\n  #{name}"
 
@@ -165,11 +186,13 @@ end
 class GroupWriteableFile < SkippedFile
 end
 
-def run!
-  head_ref_path   = File.read(File.join('.git/HEAD')).chomp[/\Aref: (.*)/, 1]
-  branch_tip_sha1 = File.read(File.join('.git', head_ref_path)).chomp
+def fsck(project_path = '.')
+  GitObject.project_path = project_path
 
-  Commit.find_or_initialize_by(branch_tip_sha1).validate
+  branch_tip_sha1 = GitObject.read_branch_tip_sha1
+
+  latest_commit = Commit.find_or_initialize_by(branch_tip_sha1)
+  latest_commit.validate
 end
 
-run! if __FILE__ == $0
+fsck ARGV[0] || '.' if __FILE__ == $0
