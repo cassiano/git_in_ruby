@@ -127,8 +127,7 @@ class Tree < GitObject
   def check_content
     super
 
-    # TODO: check how to match hex values from 00 to FF (in raw form, from 0 to 255) in a regexp.
-    @entries = @data.scan(/(\d+) (.+?)\0(.{20})/m).map do |mode, name, sha1|
+    @entries = @data.scan(/(\d+) (.+?)\0([\x00-\xFF]{20})/).map do |mode, name, sha1|
       raise "\n>>> Invalid mode #{mode} in file '#{name}'" unless VALID_MODES[mode]
 
       print "\n  #{name}"
