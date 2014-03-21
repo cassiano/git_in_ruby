@@ -31,12 +31,49 @@ class InvalidTypeError          < StandardError; end
 class MissingObjectError        < StandardError; end
 class MissingTreeInCommitError  < StandardError; end
 
-class GitObject
-  class << self
-    attr_accessor :project_path
-  end
+class GitRepository
+  attr_reader :project_path
 
   SHA1_SIZE_IN_BYTES = 20
+
+  def initialize(project_path)
+    @project_path = project_path
+  end
+
+  def head_commit_sha1
+    head_ref_path = File.read(File.join(project_path, '.git', 'HEAD')).chomp[/\Aref: (.*)/, 1]
+
+    File.read(File.join(project_path, '.git', head_ref_path)).chomp
+  end
+
+  def read_object_content(git_object)
+    path = File.join(project_path, '.git', 'objects', git_object.sha1[0, 2], git_object.sha1[2, SHA1_SIZE_IN_BYTES * 2 - 2])
+
+    raise MissingObjectError.new("\n>>> File '#{path}' not found! Have you unpacked all pack files?") unless File.exists?(path)
+
+    zlib_content          = File.read(path)
+    raw_content           = Zlib::Inflate.inflate(zlib_content)
+    first_null_byte_index = raw_content.index("\0")
+    header                = raw_content[0...first_null_byte_index]
+    data                  = raw_content[(first_null_byte_index + 1)..-1]
+    type, size            = header.split
+
+    git_object.type             = type
+    git_object.size             = size.to_i
+    git_object.raw_content_sha1 = Digest::SHA1.hexdigest(raw_content)
+    git_object.data             = data if [:commit, :tree].include?(type.to_sym)
+    git_object.data_size        = data.size
+  end
+
+  def head_fsck
+    head_commit = Commit.find_or_initialize_by(self, self.head_commit_sha1)
+    head_commit.validate
+  end
+end
+
+class GitObject
+  attr_reader :repository, :sha1, :validated
+  attr_accessor :type, :size, :raw_content_sha1, :data, :data_size
 
   # http://stackoverflow.com/questions/737673/how-to-read-the-mode-field-of-git-ls-trees-output
   VALID_MODES = {
@@ -50,32 +87,27 @@ class GitObject
 
   @@instances = {}
 
-  def self.read_branch_tip_sha1
-    head_ref_path = File.read(File.join(project_path, '.git/HEAD')).chomp[/\Aref: (.*)/, 1]
-
-    File.read(File.join(project_path, '.git', head_ref_path)).chomp
-  end
-
-  def self.find_or_initialize_by(sha1, commit_level = 1)
+  def self.find_or_initialize_by(repository, sha1, commit_level = 1)
     sha1 = case sha1.size
       when 20 then hex_string_sha1(sha1)
       when 40 then sha1
       else raise "\n>>> Invalid SHA1 size (#{sha1.size})"
     end
 
-    @@instances[sha1] ||= new(sha1, commit_level)
+    @@instances[sha1] ||= new(repository, sha1, commit_level)
   end
 
   def self.hex_string_sha1(byte_sha1)
     byte_sha1.bytes.map { |b| "%02x" % b }.join
   end
 
-  def initialize(sha1, commit_level)
+  def initialize(repository, sha1, commit_level)
+    @repository   = repository
     @sha1         = sha1
     @commit_level = commit_level
     @validated    = false
 
-    load_from_file_system
+    repository.read_object_content self
   end
 
   def validate
@@ -92,25 +124,6 @@ class GitObject
   end
 
   private
-
-  def load_from_file_system
-    path = File.join(GitObject.project_path, '.git/objects/', @sha1[0, 2], @sha1[2, SHA1_SIZE_IN_BYTES * 2 - 2])
-
-    raise MissingObjectError.new("\n>>> File '#{path}' not found! Have you unpacked all pack files?") unless File.exists?(path)
-
-    zlib_content          = File.read(path)
-    raw_content           = Zlib::Inflate.inflate(zlib_content)
-    first_null_byte_index = raw_content.index("\0")
-    header                = raw_content[0...first_null_byte_index]
-    data                  = raw_content[(first_null_byte_index + 1)..-1]
-    type, size            = header.split
-
-    @type             = type
-    @size             = size.to_i
-    @raw_content_sha1 = Digest::SHA1.hexdigest(raw_content)
-    @data             = data if [:commit, :tree].include?(type.to_sym)
-    @data_size        = data.size
-  end
 
   def check_content
     expected_types = (self.class.ancestors - GitObject.ancestors).map { |klass| klass.name.underscore }
@@ -133,12 +146,12 @@ class Commit < GitObject
       raise MissingTreeInCommitError.new("\n>>> Missing required tree in commit.")
     end
 
-    @tree = Tree.find_or_initialize_by(tree_sha1, @commit_level)
+    @tree = Tree.find_or_initialize_by(@repository, tree_sha1, @commit_level)
 
     @parents = lines.find_all { |line| line.split[0] == 'parent' }.map do |line|
       commit_sha1 = line.split[1]
 
-      Commit.find_or_initialize_by commit_sha1, @commit_level + 1
+      Commit.find_or_initialize_by @repository, commit_sha1, @commit_level + 1
     end
 
     @tree.validate
@@ -154,7 +167,7 @@ class Tree < GitObject
       print "\n  #{name}"
 
       # Instantiate the object, based on its mode (Blob, Tree, ExecutableFile etc).
-      Object.const_get(VALID_MODES[mode]).find_or_initialize_by sha1, @commit_level
+      Object.const_get(VALID_MODES[mode]).find_or_initialize_by @repository, sha1, @commit_level
     end
 
     @entries.each &:validate
@@ -186,13 +199,9 @@ end
 class GroupWriteableFile < SkippedFile
 end
 
-def head_fsck(project_path = '.')
-  GitObject.project_path = project_path
-
-  branch_tip_sha1 = GitObject.read_branch_tip_sha1
-
-  latest_commit = Commit.find_or_initialize_by(branch_tip_sha1)
-  latest_commit.validate
+def run!(project_path)
+  repository = GitRepository.new(project_path)
+  repository.head_fsck
 end
 
-head_fsck ARGV[0] || '.' if __FILE__ == $0
+run! ARGV[0] || '.' if __FILE__ == $0
