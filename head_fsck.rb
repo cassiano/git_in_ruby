@@ -31,8 +31,6 @@ class MissingTreeInCommitError  < StandardError; end
 class GitRepository
   attr_reader :project_path
 
-  SHA1_SIZE_IN_BYTES = 20
-
   def initialize(project_path)
     @project_path = project_path
   end
@@ -51,21 +49,6 @@ class GitRepository
   def head_fsck!
     head_commit.validate
   end
-
-  def read_object_content(sha1)
-    path = File.join(project_path, '.git', 'objects', sha1[0, 2], sha1[2, SHA1_SIZE_IN_BYTES * 2 - 2])
-
-    raise MissingObjectError.new("\n>>> File '#{path}' not found! Have you unpacked all pack files?") unless File.exists?(path)
-
-    zlib_content          = File.read(path)
-    raw_content           = Zlib::Inflate.inflate(zlib_content)
-    first_null_byte_index = raw_content.index("\0")
-    header                = raw_content[0...first_null_byte_index]
-    data                  = raw_content[(first_null_byte_index + 1)..-1]
-    type, size            = header.split
-
-    [type, size.to_i, Digest::SHA1.hexdigest(raw_content), [:commit, :tree].include?(type.to_sym) && data, data.size]
-  end
 end
 
 class GitObject
@@ -81,6 +64,8 @@ class GitObject
     '160000' => 'GitSubModule',
     '100664' => 'GroupWriteableFile'
   }
+
+  SHA1_SIZE_IN_BYTES = 20
 
   @@instances = {}
 
@@ -104,7 +89,7 @@ class GitObject
     @commit_level = commit_level
     @validated    = false
 
-    @type, @size, @raw_content_sha1, @data, @data_size = repository.read_object_content(sha1)
+    load
   end
 
   def validate
@@ -121,6 +106,25 @@ class GitObject
   end
 
   private
+
+  def load
+    path = File.join(@repository.project_path, '.git', 'objects', @sha1[0, 2], @sha1[2, SHA1_SIZE_IN_BYTES * 2 - 2])
+
+    raise MissingObjectError.new("\n>>> File '#{path}' not found! Have you unpacked all pack files?") unless File.exists?(path)
+
+    zlib_content          = File.read(path)
+    raw_content           = Zlib::Inflate.inflate(zlib_content)
+    first_null_byte_index = raw_content.index("\0")
+    header                = raw_content[0...first_null_byte_index]
+    data                  = raw_content[(first_null_byte_index + 1)..-1]
+    type, size            = header.split
+
+    @type             = type
+    @size             = size.to_i
+    @raw_content_sha1 = Digest::SHA1.hexdigest(raw_content)
+    @data             = [:commit, :tree].include?(type.to_sym) && data
+    @data_size        = data.size
+  end
 
   def check_content
     # Locate the ancestor class which is the immediate subclass of GitObject in the hierarchy chain (one of: Blob, Commit or Tree).
