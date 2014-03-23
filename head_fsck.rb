@@ -21,12 +21,15 @@ class String
 end
 
 # List of possible exceptions.
-class InvalidModeError          < StandardError; end
-class InvalidSha1Error          < StandardError; end
-class InvalidSizeError          < StandardError; end
-class InvalidTypeError          < StandardError; end
-class MissingObjectError        < StandardError; end
-class MissingTreeInCommitError  < StandardError; end
+class InvalidModeError              < StandardError; end
+class InvalidSha1Error              < StandardError; end
+class InvalidSizeError              < StandardError; end
+class InvalidTypeError              < StandardError; end
+class MissingObjectError            < StandardError; end
+class MissingTreeInCommitError      < StandardError; end
+class MissingCommitterError         < StandardError; end
+class MissingCommitterAuthorError   < StandardError; end
+class MissingCommitterMessageError  < StandardError; end
 
 class GitRepository
   attr_reader :project_path
@@ -52,8 +55,7 @@ class GitRepository
 end
 
 class GitObject
-  attr_reader :repository, :sha1, :validated
-  attr_accessor :type, :size, :raw_content_sha1, :data, :data_size
+  attr_reader :repository, :sha1, :validated, :type, :raw_content, :header, :data, :size
 
   # http://stackoverflow.com/questions/737673/how-to-read-the-mode-field-of-git-ls-trees-output
   VALID_MODES = {
@@ -113,42 +115,40 @@ class GitObject
     raise MissingObjectError.new("\n>>> File '#{path}' not found! Have you unpacked all pack files?") unless File.exists?(path)
 
     zlib_content          = File.read(path)
-    raw_content           = Zlib::Inflate.inflate(zlib_content)
-    first_null_byte_index = raw_content.index("\0")
-    header                = raw_content[0...first_null_byte_index]
-    data                  = raw_content[(first_null_byte_index + 1)..-1]
-    type, size            = header.split
-
-    @type             = type
-    @size             = size.to_i
-    @raw_content_sha1 = Digest::SHA1.hexdigest(raw_content)
-    @data             = [:commit, :tree].include?(type.to_sym) && data
-    @data_size        = data.size
+    @raw_content          = Zlib::Inflate.inflate(zlib_content)
+    first_null_byte_index = @raw_content.index("\0")
+    @header               = @raw_content[0...first_null_byte_index]
+    @data                 = @raw_content[(first_null_byte_index + 1)..-1]
+    @type, @size          = @header.split
+    @size                 = @size.to_i
   end
 
   def check_content
     # Locate the ancestor class which is the immediate subclass of GitObject in the hierarchy chain (one of: Blob, Commit or Tree).
     expected_type = (self.class.ancestors.find { |klass| klass.superclass == GitObject }).name.underscore
 
+    raw_content_sha1 = Digest::SHA1.hexdigest(@raw_content)
+
     raise InvalidTypeError.new("\n>>> Invalid type '#{@type}' (expected '#{expected_type}')") unless @type == expected_type
-    raise InvalidSizeError.new("\n>>> Invalid size #{@size} (expected #{@data_size})") unless @size == @data_size
-    raise InvalidSha1Error.new("\n>>> Invalid SHA1 '#{@sha1}' (expected '#{@raw_content_sha1}')") unless @sha1 == @raw_content_sha1
+    raise InvalidSizeError.new("\n>>> Invalid size #{@size} (expected #{@data.size})") unless @size == @data.size
+    raise InvalidSha1Error.new("\n>>> Invalid SHA1 '#{@sha1}' (expected '#{raw_content_sha1}')") unless @sha1 == raw_content_sha1
 
     check_data if respond_to?(:check_data)
   end
 end
 
 class Commit < GitObject
+  attr_reader :tree, :parents, :committer, :author, :message
+
   def check_data
     lines = @data.split("\n")
 
-    if (tree_line = lines.find { |line| line.split[0] == 'tree' })
-      tree_sha1 = tree_line.split[1]
-    else
+    if !(tree_line = lines.find { |line| line.split[0] == 'tree' })
       raise MissingTreeInCommitError.new("\n>>> Missing required tree in commit.")
     end
 
-    @tree = Tree.find_or_initialize_by(@repository, tree_sha1, @commit_level)
+    tree_sha1 = tree_line.split[1]
+    @tree     = Tree.find_or_initialize_by(@repository, tree_sha1, @commit_level)
 
     @parents = lines.find_all { |line| line.split[0] == 'parent' }.map do |line|
       commit_sha1 = line.split[1]
@@ -156,12 +156,30 @@ class Commit < GitObject
       Commit.find_or_initialize_by @repository, commit_sha1, @commit_level + 1
     end
 
+    if !(committer_line = lines.find { |line| line.split[0] == 'committer' })
+      raise MissingCommitterError.new("\n>>> Missing committer in commit.")
+    end
+
+    if !(author_line = lines.find { |line| line.split[0] == 'author' })
+      raise MissingCommitterAuthorError.new("\n>>> Missing author in commit.")
+    end
+
+    if !(message_previous_index = lines.index(''))
+      raise MissingCommitterError.new("\n>>> Missing message in commit.")
+    end
+
+    @committer = committer_line[/\A\w+ (.*)/, 1]
+    @author    = author_line[/\A\w+ (.*)/, 1]
+    @message   = lines[(message_previous_index + 1)..-1].join("\n")
+
     @tree.validate
     @parents.each &:validate
   end
 end
 
 class Tree < GitObject
+  attr_reader :entries
+
   def check_data
     @entries = @data.scan(/(\d+) (.+?)\0([\x00-\xFF]{20})/).map do |mode, name, sha1|
       raise InvalidModeError.new("\n>>> Invalid mode #{mode} in file '#{name}'") unless VALID_MODES[mode]
