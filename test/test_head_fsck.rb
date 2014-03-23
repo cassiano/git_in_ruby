@@ -36,7 +36,7 @@ class TestFsck < Test::Unit::TestCase
   end
 
   test 'checks for missing tree in commit' do
-    assert_raise MissingTreeInCommitError do
+    assert_raise MissingCommitDataError do
       repository = GitRepository.new(File.join(@git_repositories_folder, 'missing_tree_in_commit'))
       repository.head_fsck!
     end

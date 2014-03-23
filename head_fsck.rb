@@ -21,15 +21,13 @@ class String
 end
 
 # List of possible exceptions.
-class InvalidModeError              < StandardError; end
-class InvalidSha1Error              < StandardError; end
-class InvalidSizeError              < StandardError; end
-class InvalidTypeError              < StandardError; end
-class MissingObjectError            < StandardError; end
-class MissingTreeInCommitError      < StandardError; end
-class MissingCommitterError         < StandardError; end
-class MissingCommitterAuthorError   < StandardError; end
-class MissingCommitterMessageError  < StandardError; end
+class InvalidModeError          < StandardError; end
+class InvalidSha1Error          < StandardError; end
+class InvalidSizeError          < StandardError; end
+class InvalidTypeError          < StandardError; end
+class MissingObjectError        < StandardError; end
+class ExcessiveCommitDataError  < StandardError; end
+class MissingCommitDataError    < StandardError; end
 
 class GitRepository
   attr_reader :project_path
@@ -138,59 +136,81 @@ class GitObject
 end
 
 class Commit < GitObject
-  attr_reader :tree, :parents, :committer, :author, :message
+  # attr_reader :committer, :author, :message
 
   def check_data
-    lines = @data.split("\n")
+    tree.validate
+    parents.each &:validate
+  end
 
-    if !(tree_line = lines.find { |line| line.split[0] == 'tree' })
-      raise MissingTreeInCommitError.new("\n>>> Missing required tree in commit.")
+  def tree
+    @tree ||= Tree.find_or_initialize_by(@repository, read_row('tree'), @commit_level)
+  end
+
+  def parents
+    @parents ||= read_rows('parent').map { |sha1| Commit.find_or_initialize_by(@repository, sha1, @commit_level + 1) }
+  end
+
+  def committer
+    @committer ||= read_row('committer')
+  end
+
+  def author
+    @author ||= read_row('author')
+  end
+
+  def message
+    @message ||= begin
+      rows = @data.split("\n")
+
+      if !(previous_row_index = rows.index(''))
+        raise MissingCommitDataError.new("\n>>> Missing message in commit.")
+      end
+
+      rows[(previous_row_index + 1)..-1].join("\n")
+    end
+  end
+
+  private
+
+  def read_row(label)
+    rows = read_rows(label)
+
+    if rows.size == 0
+      raise MissingCommitDataError.new("\n>>> Missing #{label} in commit.")
+    elsif rows.size > 1
+      raise ExcessiveCommitDataError.new("\n>>> Excessive #{label} in commit.")
     end
 
-    tree_sha1 = tree_line.split[1]
-    @tree     = Tree.find_or_initialize_by(@repository, tree_sha1, @commit_level)
+    rows[0]
+  end
 
-    @parents = lines.find_all { |line| line.split[0] == 'parent' }.map do |line|
-      commit_sha1 = line.split[1]
+  def read_rows(label)
+    rows = @data.split("\n")
 
-      Commit.find_or_initialize_by @repository, commit_sha1, @commit_level + 1
+    rows.find_all { |r| r.split[0] == label }.map do |row|
+      row[/\A\w+ (.*)/, 1]
     end
-
-    if !(committer_line = lines.find { |line| line.split[0] == 'committer' })
-      raise MissingCommitterError.new("\n>>> Missing committer in commit.")
-    end
-
-    if !(author_line = lines.find { |line| line.split[0] == 'author' })
-      raise MissingCommitterAuthorError.new("\n>>> Missing author in commit.")
-    end
-
-    if !(message_previous_index = lines.index(''))
-      raise MissingCommitterError.new("\n>>> Missing message in commit.")
-    end
-
-    @committer = committer_line[/\A\w+ (.*)/, 1]
-    @author    = author_line[/\A\w+ (.*)/, 1]
-    @message   = lines[(message_previous_index + 1)..-1].join("\n")
-
-    @tree.validate
-    @parents.each &:validate
   end
 end
 
 class Tree < GitObject
-  attr_reader :entries
-
   def check_data
-    @entries = @data.scan(/(\d+) (.+?)\0([\x00-\xFF]{20})/).map do |mode, name, sha1|
-      raise InvalidModeError.new("\n>>> Invalid mode #{mode} in file '#{name}'") unless VALID_MODES[mode]
+    entries.each &:validate
+  end
 
-      print "\n  #{name}"
+  def entries
+    @entries ||= begin
+      @data.scan(/(\d+) (.+?)\0([\x00-\xFF]{20})/).map do |mode, name, sha1|
+        raise InvalidModeError.new("\n>>> Invalid mode #{mode} in file '#{name}'") unless VALID_MODES[mode]
 
-      # Instantiate the object, based on its mode (Blob, Tree, ExecutableFile etc).
-      Object.const_get(VALID_MODES[mode]).find_or_initialize_by @repository, sha1, @commit_level
+        print "\n  #{name}"
+
+        # Instantiate the object, based on its mode (Blob, Tree, ExecutableFile etc).
+        Object.const_get(VALID_MODES[mode]).find_or_initialize_by @repository, sha1, @commit_level
+      end
+
     end
-
-    @entries.each &:validate
   end
 end
 
