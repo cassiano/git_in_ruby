@@ -116,9 +116,9 @@ class GitObject
     @raw_content          = Zlib::Inflate.inflate(zlib_content)
     first_null_byte_index = @raw_content.index("\0")
     @header               = @raw_content[0...first_null_byte_index]
-    @data                 = @raw_content[(first_null_byte_index + 1)..-1]
-    @type, @size          = @header.split
-    @size                 = @size.to_i
+    @data                 = @raw_content[first_null_byte_index+1..-1]
+    @type, size_as_string = @header.split
+    @size                 = size_as_string.to_i
   end
 
   def check_content
@@ -136,8 +136,6 @@ class GitObject
 end
 
 class Commit < GitObject
-  # attr_reader :committer, :author, :message
-
   def check_data
     tree.validate
     parents.each &:validate
@@ -163,11 +161,11 @@ class Commit < GitObject
     @message ||= begin
       rows = @data.split("\n")
 
-      if !(previous_row_index = rows.index(''))
+      if !(empty_row_index = rows.index(''))
         raise MissingCommitDataError.new("\n>>> Missing message in commit.")
       end
 
-      rows[(previous_row_index + 1)..-1].join("\n")
+      rows[empty_row_index+1..-1].join("\n")
     end
   end
 
@@ -179,7 +177,7 @@ class Commit < GitObject
     if rows.size == 0
       raise MissingCommitDataError.new("\n>>> Missing #{label} in commit.")
     elsif rows.size > 1
-      raise ExcessiveCommitDataError.new("\n>>> Excessive #{label} in commit.")
+      raise ExcessiveCommitDataError.new("\n>>> Excessive #{label} rows in commit.")
     end
 
     rows[0]
@@ -188,9 +186,7 @@ class Commit < GitObject
   def read_rows(label)
     rows = @data.split("\n")
 
-    rows.find_all { |r| r.split[0] == label }.map do |row|
-      row[/\A\w+ (.*)/, 1]
-    end
+    rows.find_all { |row| row.split[0] == label }.map { |row| row[/\A\w+ (.*)/, 1] }
   end
 end
 
