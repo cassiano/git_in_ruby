@@ -20,6 +20,24 @@ class String
   end
 end
 
+module Memoize
+  def remember(name)
+    memory = {}
+
+    original_method = instance_method(name)
+
+    define_method(name) do |*args|
+      if memory.has_key?(self => args)
+        memory[args]
+      else
+        original = original_method.bind(self)
+
+        memory[{ self => args }] = original.call(*args)
+      end
+    end
+  end
+end
+
 # List of possible exceptions.
 class InvalidModeError          < StandardError; end
 class InvalidSha1Error          < StandardError; end
@@ -53,6 +71,8 @@ class GitRepository
 end
 
 class GitObject
+  extend Memoize
+
   attr_reader :repository, :sha1, :validated, :type, :raw_content, :header, :data, :size
 
   # http://stackoverflow.com/questions/737673/how-to-read-the-mode-field-of-git-ls-trees-output
@@ -77,18 +97,12 @@ class GitObject
     @repository   = repository
     @sha1         = sha1
     @commit_level = commit_level
-    @validated    = false
 
     load
   end
 
   def validate
     print "\n(#{@commit_level}) Validating #{self.class.name} with SHA1 #{@sha1} "
-
-    if @validated
-      print "[skipped]"
-      return :skipped
-    end
 
     # Locate the ancestor class which is the immediate subclass of GitObject in the hierarchy chain (one of: Blob, Commit or Tree).
     expected_type = (self.class.ancestors.find { |klass| klass.superclass == GitObject }).name.underscore
@@ -99,7 +113,7 @@ class GitObject
     raise InvalidSizeError.new("\n>>> Invalid size #{@size} (expected #{@data.size})") unless @size == @data.size
     raise InvalidSha1Error.new("\n>>> Invalid SHA1 '#{@sha1}' (expected '#{raw_content_sha1}')") unless @sha1 == raw_content_sha1
 
-    @validated = true
+    true
   end
 
   private
@@ -146,11 +160,15 @@ class Commit < GitObject
   end
 
   def validate
-    return if super == :skipped
+    super
 
     tree.validate
     parents.each &:validate
+
+    true
   end
+
+  remember :validate
 
   private
 
@@ -193,10 +211,14 @@ class Tree < GitObject
   end
 
   def validate
-    return if super == :skipped
+    super
 
-    entries.values.each(&:validate)
+    entries.values.each &:validate
+
+    true
   end
+
+  remember :validate
 
   private
 
@@ -211,17 +233,19 @@ class Tree < GitObject
 end
 
 class Blob < GitObject
+  def validate
+    super
+  end
+
+  remember :validate
 end
 
 class ExecutableFile < Blob
 end
 
 class SkippedFile < Blob
-  def initialize(repository, sha1, commit_level)
-    @repository   = repository
-    @sha1         = sha1
-    @commit_level = commit_level
-    @validated    = true          # Indicate the file has already been validated, so it can be safely skipped.
+  def validate
+    true
   end
 end
 
@@ -229,6 +253,14 @@ class SymLink < SkippedFile
 end
 
 class GitSubModule < SkippedFile
+  def initialize(repository, sha1, commit_level)
+    @repository   = repository
+    @sha1         = sha1
+    @commit_level = commit_level
+
+    # Notice how we MUST NOT call the :load method for Git Sub Modules, otherwise the associated Git object won't be
+    # found in the '.git/objects' folder, resulting in a MissingObjectError exception.
+  end
 end
 
 class GroupWriteableFile < SkippedFile
