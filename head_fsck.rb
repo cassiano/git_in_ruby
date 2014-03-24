@@ -97,10 +97,17 @@ class GitObject
 
     if @validated
       print "[skipped]"
-      return
+      return :skipped
     end
 
-    check_content
+    # Locate the ancestor class which is the immediate subclass of GitObject in the hierarchy chain (one of: Blob, Commit or Tree).
+    expected_type = (self.class.ancestors.find { |klass| klass.superclass == GitObject }).name.underscore
+
+    raw_content_sha1 = Digest::SHA1.hexdigest(@raw_content)
+
+    raise InvalidTypeError.new("\n>>> Invalid type '#{@type}' (expected '#{expected_type}')") unless @type == expected_type
+    raise InvalidSizeError.new("\n>>> Invalid size #{@size} (expected #{@data.size})") unless @size == @data.size
+    raise InvalidSha1Error.new("\n>>> Invalid SHA1 '#{@sha1}' (expected '#{raw_content_sha1}')") unless @sha1 == raw_content_sha1
 
     @validated = true
   end
@@ -120,53 +127,29 @@ class GitObject
     @type, size_as_string = @header.split
     @size                 = size_as_string.to_i
   end
-
-  def check_content
-    # Locate the ancestor class which is the immediate subclass of GitObject in the hierarchy chain (one of: Blob, Commit or Tree).
-    expected_type = (self.class.ancestors.find { |klass| klass.superclass == GitObject }).name.underscore
-
-    raw_content_sha1 = Digest::SHA1.hexdigest(@raw_content)
-
-    raise InvalidTypeError.new("\n>>> Invalid type '#{@type}' (expected '#{expected_type}')") unless @type == expected_type
-    raise InvalidSizeError.new("\n>>> Invalid size #{@size} (expected #{@data.size})") unless @size == @data.size
-    raise InvalidSha1Error.new("\n>>> Invalid SHA1 '#{@sha1}' (expected '#{raw_content_sha1}')") unless @sha1 == raw_content_sha1
-
-    check_data if respond_to?(:check_data)
-  end
 end
 
 class Commit < GitObject
-  def check_data
-    tree.validate
-    parents.each &:validate
-  end
+  attr_reader :tree, :committer, :author, :message
 
-  def tree
-    @tree ||= Tree.find_or_initialize_by(@repository, read_row('tree'), @commit_level)
+  def initialize(repository, sha1, commit_level)
+    super
+
+    @tree      = Tree.find_or_initialize_by(@repository, read_row('tree'), @commit_level)
+    @committer = read_row('committer')
+    @author    = read_row('author')
+    @message   = read_message
   end
 
   def parents
     @parents ||= read_rows('parent').map { |sha1| Commit.find_or_initialize_by(@repository, sha1, @commit_level + 1) }
   end
 
-  def committer
-    @committer ||= read_row('committer')
-  end
+  def validate
+    return if super == :skipped
 
-  def author
-    @author ||= read_row('author')
-  end
-
-  def message
-    @message ||= begin
-      rows = @data.split("\n")
-
-      if !(empty_row_index = rows.index(''))
-        raise MissingCommitDataError.new("\n>>> Missing message in commit.")
-      end
-
-      rows[empty_row_index+1..-1].join("\n")
-    end
+    tree.validate
+    parents.each &:validate
   end
 
   private
@@ -188,24 +171,41 @@ class Commit < GitObject
 
     rows.find_all { |row| row.split[0] == label }.map { |row| row[/\A\w+ (.*)/, 1] }
   end
+
+  def read_message
+    rows = @data.split("\n")
+
+    if !(empty_row_index = rows.index(''))
+      raise MissingCommitDataError.new("\n>>> Missing message in commit.")
+    end
+
+    rows[empty_row_index+1..-1].join("\n")
+  end
 end
 
 class Tree < GitObject
-  def check_data
-    entries.each &:validate
+  attr_reader :entries
+
+  def initialize(repository, sha1, commit_level)
+    super
+
+    @entries = read_entries
   end
 
-  def entries
-    @entries ||= begin
-      @data.scan(/(\d+) (.+?)\0([\x00-\xFF]{20})/).map do |mode, name, sha1|
-        raise InvalidModeError.new("\n>>> Invalid mode #{mode} in file '#{name}'") unless VALID_MODES[mode]
+  def validate
+    return if super == :skipped
 
-        print "\n  #{name}"
+    entries.map(&:last).each(&:validate)
+  end
 
-        # Instantiate the object, based on its mode (Blob, Tree, ExecutableFile etc).
-        Object.const_get(VALID_MODES[mode]).find_or_initialize_by @repository, sha1, @commit_level
-      end
+  private
 
+  def read_entries
+    @data.scan(/(\d+) ([^\0]+)\0([\x00-\xFF]{20})/).map do |mode, name, sha1|
+      raise InvalidModeError.new("\n>>> Invalid mode #{mode} in file '#{name}'") unless VALID_MODES[mode]
+
+      # Instantiate the object, based on its mode (Blob, Tree, ExecutableFile etc).
+      [name, Object.const_get(VALID_MODES[mode]).find_or_initialize_by(@repository, sha1, @commit_level)]
     end
   end
 end
