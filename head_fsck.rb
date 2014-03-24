@@ -130,15 +130,14 @@ class GitObject
 end
 
 class Commit < GitObject
-  attr_reader :tree, :committer, :author, :message
+  attr_reader :tree, :author, :date, :subject
 
   def initialize(repository, sha1, commit_level)
     super
 
-    @tree      = Tree.find_or_initialize_by(@repository, read_row('tree'), @commit_level)
-    @committer = read_row('committer')
-    @author    = read_row('author')
-    @message   = read_message
+    @tree          = Tree.find_or_initialize_by(@repository, read_row('tree'), @commit_level)
+    @author, @date = read_row('author') =~ /(.*) (\d+) [+-]\d{4}/ && [$1, Time.at($2.to_i)]
+    @subject       = read_subject
   end
 
   def parents
@@ -172,11 +171,11 @@ class Commit < GitObject
     rows.find_all { |row| row.split[0] == label }.map { |row| row[/\A\w+ (.*)/, 1] }
   end
 
-  def read_message
+  def read_subject
     rows = @data.split("\n")
 
     if !(empty_row_index = rows.index(''))
-      raise MissingCommitDataError.new("\n>>> Missing message in commit.")
+      raise MissingCommitDataError.new("\n>>> Missing subject in commit.")
     end
 
     rows[empty_row_index+1..-1].join("\n")
