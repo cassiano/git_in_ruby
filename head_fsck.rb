@@ -70,17 +70,7 @@ class GitObject
   @@instances = {}
 
   def self.find_or_initialize_by(repository, sha1, commit_level = 1)
-    sha1 = case sha1.size
-      when 20 then hex_string_sha1(sha1)
-      when 40 then sha1
-      else raise "\n>>> Invalid SHA1 size (#{sha1.size})"
-    end
-
-    @@instances[sha1] ||= new(repository, sha1, commit_level)
-  end
-
-  def self.hex_string_sha1(byte_sha1)
-    byte_sha1.bytes.map { |b| "%02x" % b }.join
+    @@instances[sha1] ||= new(repository, standardized_sha1(sha1), commit_level)
   end
 
   def initialize(repository, sha1, commit_level)
@@ -124,8 +114,19 @@ class GitObject
     first_null_byte_index = @raw_content.index("\0")
     @header               = @raw_content[0...first_null_byte_index]
     @data                 = @raw_content[first_null_byte_index+1..-1]
-    @type, size_as_string = @header.split
-    @size                 = size_as_string.to_i
+    @type, @size          = @header =~ /(\w+) (\d+)/ && [$1, $2.to_i]
+  end
+
+  def self.standardized_sha1(sha1)
+    case sha1.size
+      when 20 then hex_string_sha1(sha1)
+      when 40 then sha1
+      else raise "\n>>> Invalid SHA1 size (#{sha1.size})"
+    end
+  end
+
+  def self.hex_string_sha1(byte_sha1)
+    byte_sha1.bytes.map { |b| "%02x" % b }.join
   end
 end
 
@@ -194,17 +195,17 @@ class Tree < GitObject
   def validate
     return if super == :skipped
 
-    entries.map(&:last).each(&:validate)
+    entries.values.each(&:validate)
   end
 
   private
 
   def read_entries
-    @data.scan(/(\d+) ([^\0]+)\0([\x00-\xFF]{20})/).map do |mode, name, sha1|
+    @data.scan(/(\d+) ([^\0]+)\0([\x00-\xFF]{20})/).inject({}) do |acc, (mode, name, sha1)|
       raise InvalidModeError.new("\n>>> Invalid mode #{mode} in file '#{name}'") unless VALID_MODES[mode]
 
       # Instantiate the object, based on its mode (Blob, Tree, ExecutableFile etc).
-      [name, Object.const_get(VALID_MODES[mode]).find_or_initialize_by(@repository, sha1, @commit_level)]
+      acc.merge(name => Object.const_get(VALID_MODES[mode]).find_or_initialize_by(@repository, sha1, @commit_level))
     end
   end
 end
