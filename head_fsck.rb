@@ -7,6 +7,7 @@
 
 require 'digest/sha1'
 require 'zlib'
+require 'fileutils'
 
 class String
   def underscore
@@ -107,7 +108,7 @@ class GitObject
     puts "(#{@commit_level}) Validating #{self.class.name} with SHA1 #{@sha1} "
 
     # Locate the ancestor class which is the immediate subclass of GitObject in the hierarchy chain (one of: Blob, Commit or Tree).
-    expected_type = (self.class.ancestors.find { |klass| klass.superclass == GitObject }).name.underscore
+    expected_type = (self.class.ancestors.find { |klass| klass.superclass == GitObject }).name.underscore.to_sym
 
     raw_content_sha1 = Digest::SHA1.hexdigest(@raw_content)
 
@@ -130,7 +131,7 @@ class GitObject
     first_null_byte_index = @raw_content.index("\0")
     @header               = @raw_content[0...first_null_byte_index]
     @data                 = @raw_content[first_null_byte_index+1..-1]
-    @type, @size          = @header =~ /(\w+) (\d+)/ && [$1, $2.to_i]
+    @type, @size          = @header =~ /(\w+) (\d+)/ && [$1.to_sym, $2.to_i]
   end
 
   def self.standardized_sha1(sha1)
@@ -171,6 +172,12 @@ class Commit < GitObject
   end
 
   remember :validate
+
+  def checkout!(destination_path = "checkout_files/#{sha1}")
+    FileUtils.mkpath destination_path
+
+    tree.checkout! destination_path
+  end
 
   private
 
@@ -221,6 +228,25 @@ class Tree < GitObject
   end
 
   remember :validate
+
+  def checkout!(destination_path)
+    entries.each do |name, entry|
+      filename_or_path = File.join(destination_path, name)
+
+      puts "Checking out #{filename_or_path}"
+
+      case entry
+        when Blob, ExecutableFile then
+          File.write filename_or_path, entry.data
+        when Tree then
+          FileUtils.mkpath filename_or_path
+
+          entry.checkout! filename_or_path
+        else
+          puts "Skipping file..."
+      end
+    end
+  end
 
   private
 
