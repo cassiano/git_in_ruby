@@ -27,12 +27,14 @@ module Memoize
     original_method = instance_method(name)
 
     define_method(name) do |*args|
-      if memory.has_key?(self => args)
-        memory[args]
+      memory[self.object_id] ||= {}
+
+      if memory[self.object_id].has_key?(args)
+        memory[self.object_id][args]
       else
         original = original_method.bind(self)
 
-        memory[{ self => args }] = original.call(*args)
+        memory[self.object_id][args] = original.call(*args)
       end
     end
   end
@@ -102,16 +104,16 @@ class GitObject
   end
 
   def validate
-    print "\n(#{@commit_level}) Validating #{self.class.name} with SHA1 #{@sha1} "
+    puts "(#{@commit_level}) Validating #{self.class.name} with SHA1 #{@sha1} "
 
     # Locate the ancestor class which is the immediate subclass of GitObject in the hierarchy chain (one of: Blob, Commit or Tree).
     expected_type = (self.class.ancestors.find { |klass| klass.superclass == GitObject }).name.underscore
 
     raw_content_sha1 = Digest::SHA1.hexdigest(@raw_content)
 
-    raise InvalidTypeError.new("\n>>> Invalid type '#{@type}' (expected '#{expected_type}')") unless @type == expected_type
-    raise InvalidSizeError.new("\n>>> Invalid size #{@size} (expected #{@data.size})") unless @size == @data.size
-    raise InvalidSha1Error.new("\n>>> Invalid SHA1 '#{@sha1}' (expected '#{raw_content_sha1}')") unless @sha1 == raw_content_sha1
+    raise InvalidTypeError.new(">>> Invalid type '#{@type}' (expected '#{expected_type}')") unless @type == expected_type
+    raise InvalidSizeError.new(">>> Invalid size #{@size} (expected #{@data.size})") unless @size == @data.size
+    raise InvalidSha1Error.new(">>> Invalid SHA1 '#{@sha1}' (expected '#{raw_content_sha1}')") unless @sha1 == raw_content_sha1
 
     true
   end
@@ -121,7 +123,7 @@ class GitObject
   def load
     path = File.join(@repository.project_path, '.git', 'objects', @sha1[0, 2], @sha1[2, SHA1_SIZE_IN_BYTES * 2 - 2])
 
-    raise MissingObjectError.new("\n>>> File '#{path}' not found! Have you unpacked all pack files?") unless File.exists?(path)
+    raise MissingObjectError.new(">>> File '#{path}' not found! Have you unpacked all pack files?") unless File.exists?(path)
 
     zlib_content          = File.read(path)
     @raw_content          = Zlib::Inflate.inflate(zlib_content)
@@ -135,7 +137,7 @@ class GitObject
     case sha1.size
       when 20 then hex_string_sha1(sha1)
       when 40 then sha1
-      else raise "\n>>> Invalid SHA1 size (#{sha1.size})"
+      else raise ">>> Invalid SHA1 size (#{sha1.size})"
     end
   end
 
@@ -176,9 +178,9 @@ class Commit < GitObject
     rows = read_rows(label)
 
     if rows.size == 0
-      raise MissingCommitDataError.new("\n>>> Missing #{label} in commit.")
+      raise MissingCommitDataError.new(">>> Missing #{label} in commit.")
     elsif rows.size > 1
-      raise ExcessiveCommitDataError.new("\n>>> Excessive #{label} rows in commit.")
+      raise ExcessiveCommitDataError.new(">>> Excessive #{label} rows in commit.")
     end
 
     rows[0]
@@ -194,7 +196,7 @@ class Commit < GitObject
     rows = @data.split("\n")
 
     if !(empty_row_index = rows.index(''))
-      raise MissingCommitDataError.new("\n>>> Missing subject in commit.")
+      raise MissingCommitDataError.new(">>> Missing subject in commit.")
     end
 
     rows[empty_row_index+1..-1].join("\n")
@@ -224,7 +226,7 @@ class Tree < GitObject
 
   def read_entries
     @data.scan(/(\d+) ([^\0]+)\0([\x00-\xFF]{20})/).inject({}) do |acc, (mode, name, sha1)|
-      raise InvalidModeError.new("\n>>> Invalid mode #{mode} in file '#{name}'") unless VALID_MODES[mode]
+      raise InvalidModeError.new(">>> Invalid mode #{mode} in file '#{name}'") unless VALID_MODES[mode]
 
       # Instantiate the object, based on its mode (Blob, Tree, ExecutableFile etc).
       acc.merge(name => Object.const_get(VALID_MODES[mode]).find_or_initialize_by(@repository, sha1, @commit_level))
