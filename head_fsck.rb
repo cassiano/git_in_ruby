@@ -115,8 +115,6 @@ class GitObject
     raise InvalidTypeError.new(">>> Invalid type '#{@type}' (expected '#{expected_type}')") unless @type == expected_type
     raise InvalidSizeError.new(">>> Invalid size #{@size} (expected #{@data.size})") unless @size == @data.size
     raise InvalidSha1Error.new(">>> Invalid SHA1 '#{@sha1}' (expected '#{raw_content_sha1}')") unless @sha1 == raw_content_sha1
-
-    true
   end
 
   private
@@ -167,8 +165,6 @@ class Commit < GitObject
 
     tree.validate
     parents.each &:validate
-
-    true
   end
 
   remember :validate
@@ -223,8 +219,6 @@ class Tree < GitObject
     super
 
     entries.values.each &:validate
-
-    true
   end
 
   remember :validate
@@ -236,15 +230,16 @@ class Tree < GitObject
       puts "Checking out #{filename_or_path}"
 
       case entry
-        when Blob, ExecutableFile then
-          File.open(filename_or_path, "w") do |file|
-            file.puts entry.data
-
-            file.chmod(0544) if ExecutableFile === entry
-          end
+        when ExecutableFile then                    # Must appear before its ancestors (e.g. Blob).
+          File.write filename_or_path, entry.data
+          File.chmod 0755, filename_or_path
+        when Blob then
+          File.write filename_or_path, entry.data
+          File.chmod 0644, filename_or_path
         when Tree then
-          FileUtils.mkpath filename_or_path
+          puts "Creating folder #{filename_or_path}"
 
+          FileUtils.mkpath filename_or_path
           entry.checkout! filename_or_path
         else
           puts "Skipping file..."
@@ -277,7 +272,6 @@ end
 
 class SkippedFile < Blob
   def validate
-    true
   end
 end
 
