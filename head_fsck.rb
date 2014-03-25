@@ -173,7 +173,7 @@ class Commit < GitObject
 
   remember :validate
 
-  def checkout!(destination_path = "checkout_files/#{sha1}")
+  def checkout!(destination_path = File.join('checkout_files', sha1))
     FileUtils.mkpath destination_path
 
     tree.checkout! destination_path
@@ -237,7 +237,11 @@ class Tree < GitObject
 
       case entry
         when Blob, ExecutableFile then
-          File.write filename_or_path, entry.data
+          File.open(filename_or_path, "w") do |file|
+            file.puts entry.data
+
+            file.chmod(0544) if ExecutableFile === entry
+          end
         when Tree then
           FileUtils.mkpath filename_or_path
 
