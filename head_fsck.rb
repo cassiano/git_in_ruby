@@ -175,8 +175,8 @@ class Commit < GitObject
     tree.checkout! destination_path
   end
 
-  def display_changes_introduced_by
-    tree.display_changes_between parents.map(&:tree)
+  def changes_introduced_by
+    tree.changes_between parents.map(&:tree)
   end
 
   private
@@ -251,8 +251,8 @@ class Tree < GitObject
     end
   end
 
-  def display_changes_between(trees_to_compare, base_path = nil)
-    entries.each do |name, entry|
+  def changes_between(trees_to_compare, base_path = nil)
+    entries.inject([]) do |changes, (name, entry)|
       filename_or_path = base_path ? File.join(base_path, name) : name
 
       if [Tree, Blob, ExecutableFile].include?(entry.class)
@@ -266,25 +266,27 @@ class Tree < GitObject
 
         if added || changed
           if Tree === entry
-            entry.display_changes_between entries_to_compare.find_all { |e| Tree === e }, filename_or_path
+            changes.concat entry.changes_between(entries_to_compare.find_all { |e| Tree === e }, filename_or_path)
           else    # Blob or ExecutableFile
-            puts filename_or_path + ' ' + (added ? 'added' : 'changed')
+            changes << [filename_or_path, added ? :added : :changed]
           end
         end
       else
         puts "Skipping #{filename_or_path}..."
       end
+
+      changes
     end
   end
 
   private
 
   def read_entries
-    @data.scan(/(\d+) ([^\0]+)\0([\x00-\xFF]{20})/).inject({}) do |acc, (mode, name, sha1)|
+    @data.scan(/(\d+) ([^\0]+)\0([\x00-\xFF]{20})/).inject({}) do |entries, (mode, name, sha1)|
       raise InvalidModeError.new(">>> Invalid mode #{mode} in file '#{name}'") unless VALID_MODES[mode]
 
       # Instantiate the object, based on its mode (Blob, Tree, ExecutableFile etc).
-      acc.merge(name => Object.const_get(VALID_MODES[mode]).find_or_initialize_by(@repository, sha1, @commit_level))
+      entries.merge(name => Object.const_get(VALID_MODES[mode]).find_or_initialize_by(@repository, sha1, @commit_level))
     end
   end
 end
