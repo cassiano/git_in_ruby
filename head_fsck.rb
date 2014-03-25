@@ -175,6 +175,10 @@ class Commit < GitObject
     tree.checkout! destination_path
   end
 
+  def display_changes_introduced_by
+    tree.display_changes_between parents.map(&:tree)
+  end
+
   private
 
   def read_row(label)
@@ -223,9 +227,9 @@ class Tree < GitObject
 
   remember :validate
 
-  def checkout!(destination_path)
+  def checkout!(destination_path = nil)
     entries.each do |name, entry|
-      filename_or_path = File.join(destination_path, name)
+      filename_or_path = destination_path ? File.join(destination_path, name) : name
 
       puts "Checking out #{filename_or_path}"
 
@@ -242,7 +246,33 @@ class Tree < GitObject
           FileUtils.mkpath filename_or_path
           entry.checkout! filename_or_path
         else
-          puts "Skipping file..."
+          puts "Skipping #{filename_or_path}..."
+      end
+    end
+  end
+
+  def display_changes_between(trees_to_compare, base_path = nil)
+    entries.each do |name, entry|
+      filename_or_path = base_path ? File.join(base_path, name) : name
+
+      if [Tree, Blob, ExecutableFile].include?(entry.class)
+        entries_to_compare = trees_to_compare.map { |tree| tree.entries[name] }.compact
+
+        if entries_to_compare.empty?
+          added = true
+        elsif !entries_to_compare.map(&:sha1).include?(entry.sha1)
+          changed = true
+        end
+
+        if added || changed
+          if Tree === entry
+            entry.display_changes_between entries_to_compare.find_all { |e| Tree === e }, filename_or_path
+          else    # Blob or ExecutableFile
+            puts filename_or_path + ' ' + (added ? 'added' : 'changed')
+          end
+        end
+      else
+        puts "Skipping #{filename_or_path}..."
       end
     end
   end
