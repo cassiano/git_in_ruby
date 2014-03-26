@@ -51,14 +51,15 @@ class ExcessiveCommitDataError  < StandardError; end
 class MissingCommitDataError    < StandardError; end
 
 class GitRepository
-  attr_reader :project_path
+  attr_reader :project_path, :objects
 
   def initialize(project_path)
     @project_path = project_path
+    @objects      = {}
   end
 
   def head_commit
-    @head_commit ||= Commit.find_or_initialize_by(self, head_commit_sha1)
+    @head_commit ||= Commit.find_or_initialize_by_sha1(self, head_commit_sha1)
   end
 
   def head_commit_sha1
@@ -90,10 +91,8 @@ class GitObject
 
   SHA1_SIZE_IN_BYTES = 20
 
-  @@instances = {}
-
-  def self.find_or_initialize_by(repository, sha1, commit_level = 1)
-    @@instances[sha1] ||= new(repository, standardized_sha1(sha1), commit_level)
+  def self.find_or_initialize_by_sha1(repository, sha1, commit_level = 1)
+    repository.objects[sha1] ||= new(repository, standardized_sha1(sha1), commit_level)
   end
 
   def initialize(repository, sha1, commit_level)
@@ -151,13 +150,13 @@ class Commit < GitObject
   def initialize(repository, sha1, commit_level)
     super
 
-    @tree          = Tree.find_or_initialize_by(@repository, read_row('tree'), @commit_level)
+    @tree          = Tree.find_or_initialize_by_sha1(@repository, read_row('tree'), @commit_level)
     @author, @date = read_row('author') =~ /(.*) (\d+) [+-]\d{4}/ && [$1, Time.at($2.to_i)]
     @subject       = read_subject
   end
 
   def parents
-    @parents ||= read_rows('parent').map { |sha1| Commit.find_or_initialize_by(@repository, sha1, @commit_level + 1) }
+    @parents ||= read_rows('parent').map { |sha1| Commit.find_or_initialize_by_sha1(@repository, sha1, @commit_level + 1) }
   end
 
   def parent
@@ -177,7 +176,7 @@ class Commit < GitObject
 
   remember :validate
 
-  def checkout!(destination_path = File.join('checkout_files', sha1[0..6]]))
+  def checkout!(destination_path = File.join('checkout_files', sha1[0..6]))
     FileUtils.mkpath destination_path
 
     tree.checkout! destination_path
@@ -305,7 +304,7 @@ class Tree < GitObject
       raise InvalidModeError.new(">>> Invalid mode #{mode} in file '#{name}'") unless VALID_MODES[mode]
 
       # Instantiate the object, based on its mode (Blob, Tree, ExecutableFile etc).
-      entries.merge(name => Object.const_get(VALID_MODES[mode]).find_or_initialize_by(@repository, sha1, @commit_level))
+      entries.merge(name => Object.const_get(VALID_MODES[mode]).find_or_initialize_by_sha1(@repository, sha1, @commit_level))
     end
   end
 end
