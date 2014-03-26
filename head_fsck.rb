@@ -177,7 +177,7 @@ class Commit < GitObject
 
   remember :validate
 
-  def checkout!(destination_path = File.join('checkout_files', sha1))
+  def checkout!(destination_path = File.join('checkout_files', sha1[0..6]]))
     FileUtils.mkpath destination_path
 
     tree.checkout! destination_path
