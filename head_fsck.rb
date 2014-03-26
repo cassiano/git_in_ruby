@@ -283,8 +283,7 @@ class Tree < GitObject
           sha1s  = [other_entries.map { |e| e.sha1[0..6] }.compact.uniq, entry.sha1[0..6]]
         end
 
-        if action   # Will be nil for an unchanged file.
-          # TODO: check the case where a new empty folder is introduced. Should it appear as a change?
+        if action   # A nil action indicates an unchanged file.
           if Tree === entry
             changes.concat entry.interesting_changes_between(other_entries.find_all { |e| Tree === e }, filename_or_path)
           else    # Blob or ExecutableFile
