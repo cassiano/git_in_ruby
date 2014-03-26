@@ -160,6 +160,14 @@ class Commit < GitObject
     @parents ||= read_rows('parent').map { |sha1| Commit.find_or_initialize_by(@repository, sha1, @commit_level + 1) }
   end
 
+  def parent
+    if parents.size == 1
+      parents[0]
+    else
+      raise ">>> More than one parent commit"
+    end
+  end
+
   def validate
     super
 
@@ -269,7 +277,7 @@ class Tree < GitObject
         if other_entries.empty?
           action = :created
         elsif !other_entries.map(&:sha1).include?(entry.sha1)
-          action = :updated
+          action = :changed
         elsif other_trees.size > 1 && other_entries.count { |other_entry| other_entry.sha1 == entry.sha1 } == 1
           action = :merged
         end
