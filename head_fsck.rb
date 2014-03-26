@@ -183,13 +183,13 @@ class Commit < GitObject
     tree.checkout! destination_path
   end
 
-  def changes_introduced_by
-    updates_and_creations = tree.changes_between(parents.map(&:tree))
+  def interesting_changes_introduced_by
+    updates_and_creations = tree.interesting_changes_between(parents.map(&:tree))
 
-    # Find deletions between the current commit and its parents by finding the *common* additions the other way around; i.e.,
+    # Find deletions between the current commit and its parents by finding the *common* additions the other way around, i.e.
     # between each of the parents and the current commit, then transforming them into deletions.
     deletions = parents.map { |parent|
-      parent.tree.changes_between([tree]).find_all { |(_, action)| action == :created }.map { |name, _| [name, :deleted] }
+      parent.tree.interesting_changes_between([tree]).find_all { |(_, action)| action == :created }.map { |name, _| [name, :deleted] }
     }.inject(&:&) || []
 
     updates_and_creations.concat deletions
@@ -267,7 +267,7 @@ class Tree < GitObject
     end
   end
 
-  def changes_between(other_trees, base_path = nil)
+  def interesting_changes_between(other_trees, base_path = nil)
     entries.inject([]) do |changes, (name, entry)|
       filename_or_path = base_path ? File.join(base_path, name) : name
 
@@ -278,13 +278,12 @@ class Tree < GitObject
           action = :created
         elsif !other_entries.map(&:sha1).include?(entry.sha1)
           action = :changed
-        # elsif other_trees.size > 1 && other_entries.count { |other_entry| other_entry.sha1 == entry.sha1 } == 1
-        #   action = :merged
         end
 
-        if action
+        if action   # Will be nil for an unchanged file.
+          # TODO: check the case where a new empty folder is introduced. Should it appear as a change?
           if Tree === entry
-            changes.concat entry.changes_between(other_entries.find_all { |e| Tree === e }, filename_or_path)
+            changes.concat entry.interesting_changes_between(other_entries.find_all { |e| Tree === e }, filename_or_path)
           else    # Blob or ExecutableFile
             changes << [filename_or_path, action]
           end
