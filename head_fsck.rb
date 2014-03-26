@@ -189,7 +189,7 @@ class Commit < GitObject
     # Find deletions between the current commit and its parents by finding the *common* additions the other way around, i.e.
     # between each of the parents and the current commit, then transforming them into deletions.
     deletions = parents.map { |parent|
-      parent.tree.interesting_changes_between([tree]).find_all { |(_, action)| action == :created }.map { |name, _| [name, :deleted] }
+      parent.tree.interesting_changes_between([tree]).find_all { |(_, action, _)| action == :created }.map { |name, _, sha1s| [name, :deleted, sha1s.reverse] }
     }.inject(&:&) || []
 
     updates_and_creations.concat deletions
@@ -274,10 +274,13 @@ class Tree < GitObject
       if [Tree, Blob, ExecutableFile].include?(entry.class)
         other_entries = other_trees.map { |tree| tree.entries[name] }.compact
 
+        # For merge rules, check: http://thomasrast.ch/git/evil_merge.html
         if other_entries.empty?
           action = :created
+          sha1s  = [[], entry.sha1[0..6]]
         elsif !other_entries.map(&:sha1).include?(entry.sha1)
           action = :changed
+          sha1s  = [other_entries.map { |e| e.sha1[0..6] }.compact.uniq, entry.sha1[0..6]]
         end
 
         if action   # Will be nil for an unchanged file.
@@ -285,7 +288,7 @@ class Tree < GitObject
           if Tree === entry
             changes.concat entry.interesting_changes_between(other_entries.find_all { |e| Tree === e }, filename_or_path)
           else    # Blob or ExecutableFile
-            changes << [filename_or_path, action]
+            changes << [filename_or_path, action, sha1s]
           end
         end
       else
