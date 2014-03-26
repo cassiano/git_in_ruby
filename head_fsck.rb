@@ -176,7 +176,15 @@ class Commit < GitObject
   end
 
   def changes_introduced_by
-    tree.changes_between parents.map(&:tree)
+    updates_and_creations = tree.changes_between(parents.map(&:tree))
+
+    # Find deletions between the current commit and its parents by finding the *common* additions the other way around; i.e.,
+    # between each of the parents and the current commit, then transforming them into deletions.
+    deletions = parents.map { |parent|
+      parent.tree.changes_between([tree]).find_all { |(_, action)| action == :created }
+    }.inject(&:&).map { |name, _| [name, :deleted] } || []
+
+    updates_and_creations.concat deletions
   end
 
   private
@@ -251,24 +259,26 @@ class Tree < GitObject
     end
   end
 
-  def changes_between(trees_to_compare, base_path = nil)
+  def changes_between(other_trees, base_path = nil)
     entries.inject([]) do |changes, (name, entry)|
       filename_or_path = base_path ? File.join(base_path, name) : name
 
       if [Tree, Blob, ExecutableFile].include?(entry.class)
-        entries_to_compare = trees_to_compare.map { |tree| tree.entries[name] }.compact
+        other_entries = other_trees.map { |tree| tree.entries[name] }.compact
 
-        if entries_to_compare.empty?
-          added = true
-        elsif !entries_to_compare.map(&:sha1).include?(entry.sha1)
-          changed = true
+        if other_entries.empty?
+          action = :created
+        elsif !other_entries.map(&:sha1).include?(entry.sha1)
+          action = :updated
+        elsif other_trees.size > 1 && other_entries.count { |other_entry| other_entry.sha1 == entry.sha1 } == 1
+          action = :merged
         end
 
-        if added || changed
+        if action
           if Tree === entry
-            changes.concat entry.changes_between(entries_to_compare.find_all { |e| Tree === e }, filename_or_path)
+            changes.concat entry.changes_between(other_entries.find_all { |e| Tree === e }, filename_or_path)
           else    # Blob or ExecutableFile
-            changes << [filename_or_path, added ? :added : :changed]
+            changes << [filename_or_path, action]
           end
         end
       else
