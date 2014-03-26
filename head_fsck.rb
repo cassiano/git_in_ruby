@@ -164,7 +164,7 @@ class Commit < GitObject
     if parents.size == 1
       parents[0]
     else
-      raise ">>> More than one parent commit"
+      raise ">>> More than one parent commit (please be more specific)."
     end
   end
 
@@ -189,8 +189,8 @@ class Commit < GitObject
     # Find deletions between the current commit and its parents by finding the *common* additions the other way around; i.e.,
     # between each of the parents and the current commit, then transforming them into deletions.
     deletions = parents.map { |parent|
-      parent.tree.changes_between([tree]).find_all { |(_, action)| action == :created }
-    }.inject(&:&).map { |name, _| [name, :deleted] } || []
+      parent.tree.changes_between([tree]).find_all { |(_, action)| action == :created }.map { |name, _| [name, :deleted] }
+    }.inject(&:&) || []
 
     updates_and_creations.concat deletions
   end
@@ -278,8 +278,8 @@ class Tree < GitObject
           action = :created
         elsif !other_entries.map(&:sha1).include?(entry.sha1)
           action = :changed
-        elsif other_trees.size > 1 && other_entries.count { |other_entry| other_entry.sha1 == entry.sha1 } == 1
-          action = :merged
+        # elsif other_trees.size > 1 && other_entries.count { |other_entry| other_entry.sha1 == entry.sha1 } == 1
+        #   action = :merged
         end
 
         if action
