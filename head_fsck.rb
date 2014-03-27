@@ -77,7 +77,7 @@ end
 class GitObject
   extend Memoize
 
-  attr_reader :repository, :sha1, :validated, :type, :raw_content, :header, :data, :size
+  attr_reader :repository, :sha1, :type, :raw_content, :header, :data, :size
 
   # http://stackoverflow.com/questions/737673/how-to-read-the-mode-field-of-git-ls-trees-output
   VALID_MODES = {
