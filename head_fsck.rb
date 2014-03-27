@@ -156,13 +156,11 @@ class Commit < GitObject
 
     # Find deletions between the current commit and its parents by finding the *common* additions the other way around, i.e.
     # between each of the parents and the current commit, then transforming them into deletions.
-    deletions = parents.map { |parent|
+    updates_and_creations.concat parents.map { |parent|
       parent.tree.interesting_changes_between([tree]).find_all { |(_, action, _)| action == :created }.map { |name, _, sha1s| [name, :deleted, sha1s.reverse] }
     }.inject(:&) || []
 
-    updates_and_creations.concat deletions
-
-    # Identify renamed files, replacing the :created + :deleted array entries by a single :renamed one.
+    # Identify renamed files, replacing the :created and :deleted associated pair by a single :renamed one.
     updates_and_creations.find_all { |(_, action, _)| action == :created }.inject(updates_and_creations) do |changes, created_file|
       if (deleted_file = changes.find { |(_, action, (deleted_sha1, _))| action == :deleted && deleted_sha1 == created_file[2][1] })
         changes.delete created_file
