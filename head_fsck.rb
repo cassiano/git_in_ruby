@@ -121,7 +121,7 @@ class GitObject
   def load
     path = File.join(@repository.project_path, '.git', 'objects', @sha1[0, 2], @sha1[2..-1])
 
-    raise MissingObjectError.new(">>> File '#{path}' not found! Have you unpacked all pack files?") unless File.exists?(path)
+    raise MissingObjectError, ">>> File '#{path}' not found! Have you unpacked all pack files?" unless File.exists?(path)
 
     zlib_content          = File.read(path)
     @raw_content          = Zlib::Inflate.inflate(zlib_content)
