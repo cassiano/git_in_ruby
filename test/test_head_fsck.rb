@@ -78,25 +78,25 @@ class TestFsck < Test::Unit::TestCase
 
         assert_equal [
           ["a", :deleted, ["92b0a48", []]],
-          ["b", :changed, [["f0febf9"], "9ee336d"]],
+          ["b", :updated, [["f0febf9"], "9ee336d"]],
           ["d", :created, [[], "3870675"]]
         ], commit.interesting_changes_introduced_by.sort
       end
 
-      test 'shows empty additions, deletions or changes with multiple parents (normal merge commit)' do
+      test 'shows empty changes for usual merge commit' do
         repository = GitRepository.new(File.join(@git_repositories_folder, 'valid_with_merge'))
         commit     = Commit.find_or_initialize_by_sha1(repository, 'e61ce5cf4178fd9e18f96862e52f192eeaf55b92')
 
-        assert_equal [], commit.interesting_changes_introduced_by.sort
+        assert_equal [], commit.interesting_changes_introduced_by
       end
 
-      test 'shows additions, deletions or changes with multiple parents (evil merge commit)' do
+      test 'shows all additions, deletions or updates for "evil" merge commit' do
         repository = GitRepository.new(File.join(@git_repositories_folder, 'valid_with_merge'))
         commit     = Commit.find_or_initialize_by_sha1(repository, '56acfdb0b48b42e97c0714c4bd1263b47225acdf')
 
         assert_equal [
           ["c", :deleted, ["a1a8457", []]],
-          ["d", :changed, [["3284dfe", "e2556d1"], "658ef45"]],
+          ["d", :updated, [["3284dfe", "e2556d1"], "658ef45"]],
           ["f", :created, [[], "f1f803a"]]
         ], commit.interesting_changes_introduced_by.sort
       end

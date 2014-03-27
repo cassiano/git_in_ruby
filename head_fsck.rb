@@ -278,7 +278,7 @@ class Tree < GitObject
           action = :created
           sha1s  = [[], entry.sha1[0..6]]
         elsif !other_entries.map(&:sha1).include?(entry.sha1)
-          action = :changed
+          action = :updated
           sha1s  = [other_entries.map { |e| e.sha1[0..6] }.compact.uniq, entry.sha1[0..6]]
         end
 
