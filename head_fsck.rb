@@ -8,6 +8,8 @@
 require 'digest/sha1'
 require 'zlib'
 require 'fileutils'
+require './memoize'
+require './sha1_util'
 
 class String
   def underscore
@@ -18,42 +20,6 @@ class String
     word.tr!("-", "_")
     word.downcase!
     word
-  end
-end
-
-module Memoize
-  def remember(*names)
-    names.each do |name|
-      memory = {}
-
-      original_method = instance_method(name)
-
-      define_method(name) do |*args|
-        memory[self.object_id] ||= {}
-
-        if memory[self.object_id].has_key?(args)
-          memory[self.object_id][args]
-        else
-          original = original_method.bind(self)
-
-          memory[self.object_id][args] = original.call(*args)
-        end
-      end
-    end
-  end
-end
-
-module Sha1Utilities
-  def standardized_sha1(sha1)
-    case sha1.size
-      when 20 then hex_string_sha1(sha1)
-      when 40 then sha1
-      else raise ">>> Invalid SHA1 size (#{sha1.size})"
-    end
-  end
-
-  def hex_string_sha1(byte_sha1)
-    byte_sha1.bytes.map { |b| "%02x" % b }.join
   end
 end
 
@@ -93,7 +59,7 @@ class GitRepository
 end
 
 class GitObject
-  extend Sha1Utilities
+  extend Sha1Util
   extend Memoize
 
   attr_reader :repository, :sha1, :type, :raw_content, :header, :data, :size
@@ -277,7 +243,7 @@ class Tree < GitObject
     entries.inject([]) do |changes, (name, entry)|
       filename_or_path = base_path ? File.join(base_path, name) : name
 
-      if [Tree, Blob, ExecutableFile, GroupWritableFile].include?(entry.class)
+      if [Tree, Blob, ExecutableFile, GroupWriteableFile].include?(entry.class)
         other_entries = other_trees.map { |tree| tree.entries[name] }.compact
 
         # For merge rules, check: http://thomasrast.ch/git/evil_merge.html
