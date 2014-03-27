@@ -310,10 +310,6 @@ class Tree < GitObject
 end
 
 class Blob < GitObject
-  def validate
-    super
-  end
-
   remember :validate
 end
 
