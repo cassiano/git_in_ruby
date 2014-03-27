@@ -8,6 +8,7 @@
 require 'digest/sha1'
 require 'zlib'
 require 'fileutils'
+
 require File.join(File.dirname(File.expand_path(__FILE__)), 'memoize')
 require File.join(File.dirname(File.expand_path(__FILE__)), 'sha1_util')
 require File.join(File.dirname(File.expand_path(__FILE__)), 'string_extensions')
@@ -57,9 +58,9 @@ class GitObject
     '40000'  => 'Tree',
     '100644' => 'Blob',
     '100755' => 'ExecutableFile',
+    '100664' => 'GroupWriteableFile',
     '120000' => 'SymLink',
-    '160000' => 'GitSubModule',
-    '100664' => 'GroupWriteableFile'
+    '160000' => 'GitSubModule'
   }
 
   def self.find_or_initialize_by_sha1(repository, sha1, commit_level = 1)
@@ -82,9 +83,9 @@ class GitObject
 
     raw_content_sha1 = Digest::SHA1.hexdigest(@raw_content)
 
-    raise InvalidTypeError, ">>> Invalid type '#{@type}' (expected '#{expected_type}')" unless @type == expected_type
-    raise InvalidSizeError, ">>> Invalid size #{@size} (expected #{@data.size})" unless @size == @data.size
-    raise InvalidSha1Error, ">>> Invalid SHA1 '#{@sha1}' (expected '#{raw_content_sha1}')" unless @sha1 == raw_content_sha1
+    raise InvalidTypeError, "Invalid type '#{@type}' (expected '#{expected_type}')" unless @type == expected_type
+    raise InvalidSizeError, "Invalid size #{@size} (expected #{@data.size})" unless @size == @data.size
+    raise InvalidSha1Error, "Invalid SHA1 '#{@sha1}' (expected '#{raw_content_sha1}')" unless @sha1 == raw_content_sha1
   end
 
   private
@@ -92,7 +93,7 @@ class GitObject
   def load
     path = File.join(@repository.project_path, '.git', 'objects', @sha1[0, 2], @sha1[2..-1])
 
-    raise MissingObjectError, ">>> File '#{path}' not found! Have you unpacked all pack files?" unless File.exists?(path)
+    raise MissingObjectError, "File '#{path}' not found! Have you unpacked all pack files?" unless File.exists?(path)
 
     zlib_content          = File.read(path)
     @raw_content          = Zlib::Inflate.inflate(zlib_content)
@@ -122,7 +123,7 @@ class Commit < GitObject
     if parents.size == 1
       parents[0]
     else
-      raise ">>> Zero or more than one parent commit found."
+      raise "Zero or more than one parent commit found."
     end
   end
 
@@ -167,9 +168,9 @@ class Commit < GitObject
     rows = read_rows(label)
 
     if rows.size == 0
-      raise MissingCommitDataError, ">>> Missing #{label} in commit."
+      raise MissingCommitDataError, "Missing #{label} in commit."
     elsif rows.size > 1
-      raise ExcessiveCommitDataError, ">>> Excessive #{label} rows in commit."
+      raise ExcessiveCommitDataError, "Excessive #{label} rows in commit."
     end
 
     rows[0]
@@ -185,7 +186,7 @@ class Commit < GitObject
     rows = @data.split("\n")
 
     if !(empty_row_index = rows.index(''))
-      raise MissingCommitDataError, ">>> Missing subject in commit."
+      raise MissingCommitDataError, "Missing subject in commit."
     end
 
     rows[empty_row_index+1..-1].join("\n")
@@ -272,7 +273,7 @@ class Tree < GitObject
 
   def read_entries
     @data.scan(/(\d+) ([^\0]+)\0([\x00-\xFF]{20})/).inject({}) do |entries, (mode, name, sha1)|
-      raise InvalidModeError, ">>> Invalid mode #{mode} in file '#{name}'" unless VALID_MODES[mode]
+      raise InvalidModeError, "Invalid mode #{mode} in file '#{name}'" unless VALID_MODES[mode]
 
       # Instantiate the object, based on its mode (Blob, Tree, ExecutableFile etc).
       entries.merge(name => Object.const_get(VALID_MODES[mode]).find_or_initialize_by_sha1(@repository, sha1, @commit_level))
