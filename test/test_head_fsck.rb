@@ -83,7 +83,14 @@ class TestFsck < Test::Unit::TestCase
         ], commit.interesting_changes_introduced_by.sort
       end
 
-      test 'shows additions, deletions or changes with multiple parents (merge commit)' do
+      test 'shows empty additions, deletions or changes with multiple parents (normal merge commit)' do
+        repository = GitRepository.new(File.join(@git_repositories_folder, 'valid_with_merge'))
+        commit     = Commit.find_or_initialize_by_sha1(repository, 'e61ce5cf4178fd9e18f96862e52f192eeaf55b92')
+
+        assert_equal [], commit.interesting_changes_introduced_by.sort
+      end
+
+      test 'shows additions, deletions or changes with multiple parents (evil merge commit)' do
         repository = GitRepository.new(File.join(@git_repositories_folder, 'valid_with_merge'))
         commit     = Commit.find_or_initialize_by_sha1(repository, '56acfdb0b48b42e97c0714c4bd1263b47225acdf')
 
