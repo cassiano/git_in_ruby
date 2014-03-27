@@ -8,8 +8,8 @@
 require 'digest/sha1'
 require 'zlib'
 require 'fileutils'
-require './memoize'
-require './sha1_util'
+require File.join(File.dirname(File.expand_path(__FILE__)), 'memoize')
+require File.join(File.dirname(File.expand_path(__FILE__)), 'sha1_util')
 
 class String
   def underscore
