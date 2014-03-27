@@ -119,7 +119,7 @@ class GitObject
   private
 
   def load
-    path = File.join(@repository.project_path, '.git', 'objects', @sha1[0, 2], @sha1[2, SHA1_SIZE_IN_BYTES * 2 - 2])
+    path = File.join(@repository.project_path, '.git', 'objects', @sha1[0, 2], @sha1[2..-1])
 
     raise MissingObjectError.new(">>> File '#{path}' not found! Have you unpacked all pack files?") unless File.exists?(path)
 
