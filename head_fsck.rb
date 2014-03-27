@@ -123,7 +123,7 @@ class Commit < GitObject
     if parents.size == 1
       parents[0]
     else
-      raise ">>> Zero or more than one parent commit (please be more specific)."
+      raise ">>> Zero or more than one parent commit found."
     end
   end
 
