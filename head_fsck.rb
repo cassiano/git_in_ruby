@@ -22,55 +22,24 @@ class String
 end
 
 module Memoize
-  def remember(name)
-    memory = {}
+  def remember(*names)
+    names.each do |name|
+      memory = {}
 
-    original_method = instance_method(name)
+      original_method = instance_method(name)
 
-    define_method(name) do |*args|
-      memory[self.object_id] ||= {}
+      define_method(name) do |*args|
+        memory[self.object_id] ||= {}
 
-      if memory[self.object_id].has_key?(args)
-        memory[self.object_id][args]
-      else
-        original = original_method.bind(self)
+        if memory[self.object_id].has_key?(args)
+          memory[self.object_id][args]
+        else
+          original = original_method.bind(self)
 
-        memory[self.object_id][args] = original.call(*args)
+          memory[self.object_id][args] = original.call(*args)
+        end
       end
     end
-  end
-end
-
-# List of possible exceptions.
-class InvalidModeError          < StandardError; end
-class InvalidSha1Error          < StandardError; end
-class InvalidSizeError          < StandardError; end
-class InvalidTypeError          < StandardError; end
-class MissingObjectError        < StandardError; end
-class ExcessiveCommitDataError  < StandardError; end
-class MissingCommitDataError    < StandardError; end
-
-class GitRepository
-  attr_reader :project_path, :objects
-
-  def initialize(project_path)
-    @project_path = project_path
-    @objects      = {}
-  end
-
-  def head_commit
-    @head_commit ||= Commit.find_or_initialize_by_sha1(self, head_commit_sha1)
-  end
-
-  def head_commit_sha1
-    @head_commit_sha1 ||= begin
-      head_ref_path = File.read(File.join(project_path, '.git', 'HEAD')).chomp[/\Aref: (.*)/, 1]
-      File.read(File.join(project_path, '.git', head_ref_path)).chomp
-    end
-  end
-
-  def head_fsck!
-    head_commit.validate
   end
 end
 
@@ -88,6 +57,41 @@ module Sha1Utilities
   end
 end
 
+# List of possible exceptions.
+class InvalidModeError          < StandardError; end
+class InvalidSha1Error          < StandardError; end
+class InvalidSizeError          < StandardError; end
+class InvalidTypeError          < StandardError; end
+class MissingObjectError        < StandardError; end
+class ExcessiveCommitDataError  < StandardError; end
+class MissingCommitDataError    < StandardError; end
+
+class GitRepository
+  extend Memoize
+
+  attr_reader :project_path, :objects
+
+  def initialize(project_path)
+    @project_path = project_path
+    @objects      = {}
+  end
+
+  def head_commit
+    Commit.find_or_initialize_by_sha1 self, head_commit_sha1
+  end
+
+  def head_commit_sha1
+    head_ref_path = File.read(File.join(project_path, '.git', 'HEAD')).chomp[/\Aref: (.*)/, 1]
+    File.read(File.join(project_path, '.git', head_ref_path)).chomp
+  end
+
+  def head_fsck!
+    head_commit.validate
+  end
+
+  remember :head_commit, :head_commit_sha1
+end
+
 class GitObject
   extend Sha1Utilities
   extend Memoize
@@ -103,8 +107,6 @@ class GitObject
     '160000' => 'GitSubModule',
     '100664' => 'GroupWriteableFile'
   }
-
-  SHA1_SIZE_IN_BYTES = 20
 
   def self.find_or_initialize_by_sha1(repository, sha1, commit_level = 1)
     repository.objects[sha1] ||= new(repository, standardized_sha1(sha1), commit_level)
@@ -159,14 +161,14 @@ class Commit < GitObject
   end
 
   def parents
-    @parents ||= read_rows('parent').map { |sha1| Commit.find_or_initialize_by_sha1(@repository, sha1, @commit_level + 1) }
+    read_rows('parent').map { |sha1| Commit.find_or_initialize_by_sha1(@repository, sha1, @commit_level + 1) }
   end
 
   def parent
     if parents.size == 1
       parents[0]
     else
-      raise ">>> More than one parent commit (please be more specific)."
+      raise ">>> Zero or more than one parent commit (please be more specific)."
     end
   end
 
@@ -176,8 +178,6 @@ class Commit < GitObject
     tree.validate
     parents.each &:validate
   end
-
-  remember :validate
 
   def checkout!(destination_path = File.join('checkout_files', sha1[0..6]))
     FileUtils.mkpath destination_path
@@ -192,7 +192,7 @@ class Commit < GitObject
     # between each of the parents and the current commit, then transforming them into deletions.
     deletions = parents.map { |parent|
       parent.tree.interesting_changes_between([tree]).find_all { |(_, action, _)| action == :created }.map { |name, _, sha1s| [name, :deleted, sha1s.reverse] }
-    }.inject(&:&) || []
+    }.inject(:&) || []
 
     updates_and_creations.concat deletions
   end
@@ -226,6 +226,8 @@ class Commit < GitObject
 
     rows[empty_row_index+1..-1].join("\n")
   end
+
+  remember :parents, :validate
 end
 
 class Tree < GitObject
@@ -243,8 +245,6 @@ class Tree < GitObject
     entries.values.each &:validate
   end
 
-  remember :validate
-
   def checkout!(destination_path = nil)
     entries.each do |name, entry|
       filename_or_path = destination_path ? File.join(destination_path, name) : name
@@ -252,12 +252,16 @@ class Tree < GitObject
       puts "Checking out #{filename_or_path}"
 
       case entry
-        when ExecutableFile then                    # Must appear before its ancestors (e.g. Blob).
+        when ExecutableFile, GroupWriteableFile, Blob then
+          filemode =
+            case entry
+              when ExecutableFile     then  0755
+              when GroupWriteableFile then  0664
+              else                          0644    # Blob
+            end
+
           File.write filename_or_path, entry.data
-          File.chmod 0755, filename_or_path
-        when Blob then
-          File.write filename_or_path, entry.data
-          File.chmod 0644, filename_or_path
+          File.chmod filemode, filename_or_path
         when Tree then
           puts "Creating folder #{filename_or_path}"
 
@@ -273,7 +277,7 @@ class Tree < GitObject
     entries.inject([]) do |changes, (name, entry)|
       filename_or_path = base_path ? File.join(base_path, name) : name
 
-      if [Tree, Blob, ExecutableFile].include?(entry.class)
+      if [Tree, Blob, ExecutableFile, GroupWritableFile].include?(entry.class)
         other_entries = other_trees.map { |tree| tree.entries[name] }.compact
 
         # For merge rules, check: http://thomasrast.ch/git/evil_merge.html
@@ -288,7 +292,7 @@ class Tree < GitObject
         if action   # A nil action indicates an unchanged file.
           if Tree === entry
             changes.concat entry.interesting_changes_between(other_entries.find_all { |e| Tree === e }, filename_or_path)
-          else    # Blob or ExecutableFile
+          else    # Blob or one of its subclasses.
             changes << [filename_or_path, action, sha1s]
           end
         end
@@ -310,6 +314,8 @@ class Tree < GitObject
       entries.merge(name => Object.const_get(VALID_MODES[mode]).find_or_initialize_by_sha1(@repository, sha1, @commit_level))
     end
   end
+
+  remember :validate
 end
 
 class Blob < GitObject
@@ -317,6 +323,9 @@ class Blob < GitObject
 end
 
 class ExecutableFile < Blob
+end
+
+class GroupWriteableFile < Blob
 end
 
 class SkippedFile < Blob
@@ -336,9 +345,6 @@ class GitSubModule < SkippedFile
     # Notice how we MUST NOT call the :load method for Git Sub Modules, otherwise the associated Git object won't be
     # found in the '.git/objects' folder, resulting in a MissingObjectError exception.
   end
-end
-
-class GroupWriteableFile < SkippedFile
 end
 
 def run!(project_path)
