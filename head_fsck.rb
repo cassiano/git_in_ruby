@@ -161,6 +161,17 @@ class Commit < GitObject
     }.inject(:&) || []
 
     updates_and_creations.concat deletions
+
+    # Identify renamed files, replacing the :created + :deleted array entries by a single :renamed one.
+    updates_and_creations.find_all { |(_, action, _)| action == :created }.inject(updates_and_creations) do |changes, created_file|
+      if (deleted_file = changes.find { |(_, action, (deleted_sha1, _))| action == :deleted && deleted_sha1 == created_file[2][1] })
+        changes.delete created_file
+        changes.delete deleted_file
+        changes.concat ["#{deleted_file[0]} -> #{created_file[0]}", :renamed, [deleted_file[2][0], created_file[2][1]]]
+      end
+
+      changes
+    end
   end
 
   private

@@ -90,7 +90,7 @@ class TestFsck < Test::Unit::TestCase
         assert_equal [], commit.interesting_changes_introduced_by
       end
 
-      test 'shows all additions, deletions or updates for "evil" merge commit' do
+      test 'shows additions, deletions or updates for "evil" merge commit' do
         repository = GitRepository.new(File.join(@git_repositories_folder, 'valid_with_merge'))
         commit     = Commit.find_or_initialize_by_sha1(repository, '56acfdb0b48b42e97c0714c4bd1263b47225acdf')
 
@@ -99,6 +99,13 @@ class TestFsck < Test::Unit::TestCase
           ["d", :updated, [["3284dfe", "e2556d1"], "658ef45"]],
           ["f", :created, [[], "f1f803a"]]
         ], commit.interesting_changes_introduced_by.sort
+      end
+
+      test 'shows renames' do
+        repository = GitRepository.new(File.join(@git_repositories_folder, 'valid_with_merge'))
+        commit     = Commit.find_or_initialize_by_sha1(repository, 'd07013e585bfc4844ae9e5b890bb4385516c3815')
+
+        assert_equal ["e -> A/e", :renamed, ["a04c515", "a04c515"]], commit.interesting_changes_introduced_by
       end
     end
   end
