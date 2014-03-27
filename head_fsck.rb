@@ -44,11 +44,10 @@ class GitRepository
     head_commit.validate
   end
 
-  remember :head_commit, :head_commit_sha1
+  remember :head_commit_sha1
 end
 
 class GitObject
-  extend Sha1Util
   extend Memoize
 
   attr_reader :repository, :sha1, :type, :raw_content, :header, :data, :size
@@ -64,7 +63,7 @@ class GitObject
   }
 
   def self.find_or_initialize_by_sha1(repository, sha1, commit_level = 1)
-    repository.objects[sha1] ||= new(repository, standardized_sha1(sha1), commit_level)
+    repository.objects[sha1] ||= new(repository, Sha1Util.standardized_sha1(sha1), commit_level)
   end
 
   def initialize(repository, sha1, commit_level)

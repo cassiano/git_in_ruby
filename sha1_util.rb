@@ -1,5 +1,5 @@
 module Sha1Util
-  def standardized_sha1(sha1)
+  def self.standardized_sha1(sha1)
     case sha1.size
       when 20 then hex_string_sha1(sha1)
       when 40 then sha1
@@ -7,7 +7,7 @@ module Sha1Util
     end
   end
 
-  def hex_string_sha1(byte_sha1)
+  def self.hex_string_sha1(byte_sha1)
     byte_sha1.bytes.map { |b| "%02x" % b }.join
   end
 end
