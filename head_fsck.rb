@@ -111,9 +111,9 @@ class GitObject
 
     raw_content_sha1 = Digest::SHA1.hexdigest(@raw_content)
 
-    raise InvalidTypeError.new(">>> Invalid type '#{@type}' (expected '#{expected_type}')") unless @type == expected_type
-    raise InvalidSizeError.new(">>> Invalid size #{@size} (expected #{@data.size})") unless @size == @data.size
-    raise InvalidSha1Error.new(">>> Invalid SHA1 '#{@sha1}' (expected '#{raw_content_sha1}')") unless @sha1 == raw_content_sha1
+    raise InvalidTypeError, ">>> Invalid type '#{@type}' (expected '#{expected_type}')" unless @type == expected_type
+    raise InvalidSizeError, ">>> Invalid size #{@size} (expected #{@data.size})" unless @size == @data.size
+    raise InvalidSha1Error, ">>> Invalid SHA1 '#{@sha1}' (expected '#{raw_content_sha1}')" unless @sha1 == raw_content_sha1
   end
 
   private
@@ -200,9 +200,9 @@ class Commit < GitObject
     rows = read_rows(label)
 
     if rows.size == 0
-      raise MissingCommitDataError.new(">>> Missing #{label} in commit.")
+      raise MissingCommitDataError, ">>> Missing #{label} in commit."
     elsif rows.size > 1
-      raise ExcessiveCommitDataError.new(">>> Excessive #{label} rows in commit.")
+      raise ExcessiveCommitDataError, ">>> Excessive #{label} rows in commit."
     end
 
     rows[0]
@@ -218,7 +218,7 @@ class Commit < GitObject
     rows = @data.split("\n")
 
     if !(empty_row_index = rows.index(''))
-      raise MissingCommitDataError.new(">>> Missing subject in commit.")
+      raise MissingCommitDataError, ">>> Missing subject in commit."
     end
 
     rows[empty_row_index+1..-1].join("\n")
@@ -301,7 +301,7 @@ class Tree < GitObject
 
   def read_entries
     @data.scan(/(\d+) ([^\0]+)\0([\x00-\xFF]{20})/).inject({}) do |entries, (mode, name, sha1)|
-      raise InvalidModeError.new(">>> Invalid mode #{mode} in file '#{name}'") unless VALID_MODES[mode]
+      raise InvalidModeError, ">>> Invalid mode #{mode} in file '#{name}'" unless VALID_MODES[mode]
 
       # Instantiate the object, based on its mode (Blob, Tree, ExecutableFile etc).
       entries.merge(name => Object.const_get(VALID_MODES[mode]).find_or_initialize_by_sha1(@repository, sha1, @commit_level))
