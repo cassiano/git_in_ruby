@@ -10,18 +10,7 @@ require 'zlib'
 require 'fileutils'
 require File.join(File.dirname(File.expand_path(__FILE__)), 'memoize')
 require File.join(File.dirname(File.expand_path(__FILE__)), 'sha1_util')
-
-class String
-  def underscore
-    word = self.dup
-    word.gsub!(/::/, '/')
-    word.gsub!(/([A-Z]+)([A-Z][a-z])/,'\1_\2')
-    word.gsub!(/([a-z\d])([A-Z])/,'\1_\2')
-    word.tr!("-", "_")
-    word.downcase!
-    word
-  end
-end
+require File.join(File.dirname(File.expand_path(__FILE__)), 'string_extensions')
 
 # List of possible exceptions.
 class InvalidModeError          < StandardError; end
