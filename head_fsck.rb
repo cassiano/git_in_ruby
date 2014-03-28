@@ -55,16 +55,27 @@ class AbstractGitRepository
 end
 
 class FileSystemGitRepository < AbstractGitRepository
-  attr_reader :project_path
+  attr_reader :project_path, :bare
 
   def initialize(options = {})
     super
-    @project_path  = options[:project_path]
+
+    options = {
+      bare: false
+    }.merge(options)
+
+    @project_path = options[:project_path]
+    @bare         = options[:bare]
+  end
+
+  def git_path
+    bare ? project_path : File.join(project_path, '.git')
   end
 
   def head_commit_sha1
-    head_ref_path = File.read(File.join(project_path, '.git', 'HEAD')).chomp[/\Aref: (.*)/, 1]
-    File.read(File.join(project_path, '.git', head_ref_path)).chomp
+    head_ref_path = File.read(File.join(git_path, 'HEAD')).chomp[/\Aref: (.*)/, 1]
+
+    File.read(File.join(git_path, head_ref_path)).chomp
   end
 
   def parse_object(raw_content)
@@ -77,7 +88,7 @@ class FileSystemGitRepository < AbstractGitRepository
   end
 
   def load_object(sha1)
-    path = File.join(project_path, '.git', 'objects', sha1[0, 2], sha1[2..-1])
+    path = File.join(git_path, 'objects', sha1[0, 2], sha1[2..-1])
 
     raise MissingObjectError, "File '#{path}' not found! Have you unpacked all pack files?" unless File.exists?(path)
 
@@ -313,7 +324,7 @@ class Tree < GitObject
       raise InvalidModeError, "Invalid mode #{mode} in file '#{name}'" unless VALID_MODES[mode]
 
       # Instantiate the object, based on its mode (Blob, Tree, ExecutableFile etc).
-      entries.merge(name => Object.const_get(VALID_MODES[mode]).find_or_initialize_by_sha1(@repository, sha1, @commit_level))
+      entries.merge name => Object.const_get(VALID_MODES[mode]).find_or_initialize_by_sha1(@repository, sha1, @commit_level)
     end
   end
 
