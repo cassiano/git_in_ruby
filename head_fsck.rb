@@ -94,14 +94,14 @@ class FileSystemGitRepository < AbstractGitRepository
 
     raw_content = Zlib::Inflate.inflate File.read(path)
 
-    { raw_content: raw_content }.merge parse_object(raw_content)
+    parse_object(raw_content).merge content_sha1: Digest::SHA1.hexdigest(raw_content)
   end
 end
 
 class GitObject
   extend Memoize
 
-  attr_reader :repository, :sha1, :raw_content, :type, :size, :data
+  attr_reader :repository, :sha1, :commit_level, :type, :size, :data, :content_sha1
 
   # http://stackoverflow.com/questions/737673/how-to-read-the-mode-field-of-git-ls-trees-output
   VALID_MODES = {
@@ -126,16 +126,14 @@ class GitObject
   end
 
   def validate
-    puts "(#{@commit_level}) Validating #{self.class.name} with SHA1 #{@sha1} "
+    puts "(#{commit_level}) Validating #{self.class.name} with SHA1 #{sha1} "
 
     # Locate the ancestor class which is the immediate subclass of GitObject in the hierarchy chain (one of: Blob, Commit or Tree).
     expected_type = (self.class.ancestors.find { |cls| cls.superclass == GitObject }).name.underscore.to_sym
 
-    raw_content_sha1 = Digest::SHA1.hexdigest(@raw_content)
-
-    raise InvalidTypeError, "Invalid type '#{@type}' (expected '#{expected_type}')" unless @type == expected_type
-    raise InvalidSizeError, "Invalid size #{@size} (expected #{@data.size})" unless @size == @data.size
-    raise InvalidSha1Error, "Invalid SHA1 '#{@sha1}' (expected '#{raw_content_sha1}')" unless @sha1 == raw_content_sha1
+    raise InvalidTypeError, "Invalid type '#{type}' (expected '#{expected_type}')"  unless type == expected_type
+    raise InvalidSizeError, "Invalid size #{size} (expected #{data.size})"          unless size == data.size
+    raise InvalidSha1Error, "Invalid SHA1 '#{sha1}' (expected '#{content_sha1}')"   unless sha1 == content_sha1
 
     validate_data
   end
@@ -147,12 +145,12 @@ class GitObject
   private
 
   def load
-    object_info = @repository.load_object(@sha1)
+    object_info = repository.load_object(@sha1)
 
-    @raw_content = object_info[:raw_content]
-    @type        = object_info[:type]
-    @size        = object_info[:size]
-    @data        = object_info[:data]
+    @content_sha1 = object_info[:content_sha1]
+    @type         = object_info[:type]
+    @size         = object_info[:size]
+    @data         = object_info[:data]
   end
 end
 
