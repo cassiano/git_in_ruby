@@ -11,14 +11,14 @@ class TestFsck < Test::Unit::TestCase
     context '#head_fsck!' do
       test 'checks for invalid mode' do
         assert_raise InvalidModeError do
-          repository = GitRepository.new(File.join(@git_repositories_folder, 'invalid_mode'))
+          repository = GitRepository.new(File.join(@git_repositories_folder, 'invalid_mode'), FileSystemParser)
           repository.head_fsck!
         end
       end
 
       test 'checks for invalid SHA1' do
         exception = assert_raise InvalidSha1Error do
-          repository = GitRepository.new(File.join(@git_repositories_folder, 'invalid_sha1'))
+          repository = GitRepository.new(File.join(@git_repositories_folder, 'invalid_sha1'), FileSystemParser)
           repository.head_fsck!
         end
 
@@ -27,21 +27,21 @@ class TestFsck < Test::Unit::TestCase
 
       test 'checks for invalid size' do
         assert_raise InvalidSizeError do
-          repository = GitRepository.new(File.join(@git_repositories_folder, 'invalid_size'))
+          repository = GitRepository.new(File.join(@git_repositories_folder, 'invalid_size'), FileSystemParser)
           repository.head_fsck!
         end
       end
 
       test 'checks for invalid type' do
         assert_raise InvalidTypeError do
-          repository = GitRepository.new(File.join(@git_repositories_folder, 'invalid_type'))
+          repository = GitRepository.new(File.join(@git_repositories_folder, 'invalid_type'), FileSystemParser)
           repository.head_fsck!
         end
       end
 
       test 'checks for missing tree in commit' do
         exception = assert_raise MissingCommitDataError do
-          repository = GitRepository.new(File.join(@git_repositories_folder, 'missing_tree_in_commit'))
+          repository = GitRepository.new(File.join(@git_repositories_folder, 'missing_tree_in_commit'), FileSystemParser)
           repository.head_fsck!
         end
 
@@ -50,7 +50,7 @@ class TestFsck < Test::Unit::TestCase
 
       test 'checks for missing object' do
         exception = assert_raise MissingObjectError do
-          repository = GitRepository.new(File.join(@git_repositories_folder, 'missing_object'))
+          repository = GitRepository.new(File.join(@git_repositories_folder, 'missing_object'), FileSystemParser)
           repository.head_fsck!
         end
 
@@ -62,7 +62,7 @@ class TestFsck < Test::Unit::TestCase
   context 'Commit' do
     context '#interesting_changes_introduced_by' do
       test 'shows additions, deletions or changes with no parent' do
-        repository = GitRepository.new(File.join(@git_repositories_folder, 'valid_with_merge'))
+        repository = GitRepository.new(File.join(@git_repositories_folder, 'valid_with_merge'), FileSystemParser)
         commit     = Commit.find_or_initialize_by_sha1(repository, 'f9cc0ed357a451a0d7a4b429209f7e80a6f83240')
 
         assert_equal [
@@ -73,7 +73,7 @@ class TestFsck < Test::Unit::TestCase
       end
 
       test 'shows additions, deletions or changes with a single parent' do
-        repository = GitRepository.new(File.join(@git_repositories_folder, 'valid_with_merge'))
+        repository = GitRepository.new(File.join(@git_repositories_folder, 'valid_with_merge'), FileSystemParser)
         commit     = Commit.find_or_initialize_by_sha1(repository, 'ddd0c88d5360f5aca066075e45e33caa063f916b')
 
         assert_equal [
@@ -84,14 +84,14 @@ class TestFsck < Test::Unit::TestCase
       end
 
       test 'shows empty changes for usual merge commit' do
-        repository = GitRepository.new(File.join(@git_repositories_folder, 'valid_with_merge'))
+        repository = GitRepository.new(File.join(@git_repositories_folder, 'valid_with_merge'), FileSystemParser)
         commit     = Commit.find_or_initialize_by_sha1(repository, 'e61ce5cf4178fd9e18f96862e52f192eeaf55b92')
 
         assert_equal [], commit.interesting_changes_introduced_by
       end
 
       test 'shows additions, deletions or updates for "evil" merge commit' do
-        repository = GitRepository.new(File.join(@git_repositories_folder, 'valid_with_merge'))
+        repository = GitRepository.new(File.join(@git_repositories_folder, 'valid_with_merge'), FileSystemParser)
         commit     = Commit.find_or_initialize_by_sha1(repository, '56acfdb0b48b42e97c0714c4bd1263b47225acdf')
 
         assert_equal [
@@ -102,7 +102,7 @@ class TestFsck < Test::Unit::TestCase
       end
 
       test 'shows renames' do
-        repository = GitRepository.new(File.join(@git_repositories_folder, 'valid_with_merge'))
+        repository = GitRepository.new(File.join(@git_repositories_folder, 'valid_with_merge'), FileSystemParser)
         commit     = Commit.find_or_initialize_by_sha1(repository, 'd07013e585bfc4844ae9e5b890bb4385516c3815')
 
         assert_equal [

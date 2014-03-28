@@ -22,14 +22,26 @@ class MissingObjectError        < StandardError; end
 class ExcessiveCommitDataError  < StandardError; end
 class MissingCommitDataError    < StandardError; end
 
+class FileSystemParser
+  def self.parse(raw_content)
+    first_null_byte_index = raw_content.index("\0")
+    header                = raw_content[0...first_null_byte_index]
+    data                  = raw_content[first_null_byte_index+1..-1]
+    type, size            = header =~ /(\w+) (\d+)/ && [$1.to_sym, $2.to_i]
+
+    { raw_content: raw_content, header: header, data: data, type: type, size: size }
+  end
+end
+
 class GitRepository
   extend Memoize
 
-  attr_reader :project_path, :objects
+  attr_reader :project_path, :object_parser, :objects
 
-  def initialize(project_path)
-    @project_path = project_path
-    @objects      = {}
+  def initialize(project_path, object_parser)
+    @project_path  = project_path
+    @object_parser = object_parser
+    @objects       = {}
   end
 
   def head_commit
@@ -50,7 +62,9 @@ class GitRepository
 
     raise MissingObjectError, "File '#{path}' not found! Have you unpacked all pack files?" unless File.exists?(path)
 
-    Zlib::Inflate.inflate File.read(path)
+    raw_content = Zlib::Inflate.inflate File.read(path)
+
+    object_parser.parse raw_content
   end
 
   remember :head_commit_sha1
@@ -59,7 +73,7 @@ end
 class GitObject
   extend Memoize
 
-  attr_reader :repository, :sha1, :type, :raw_content, :header, :data, :size
+  attr_reader :repository, :sha1, :raw_content, :header, :type, :size, :data
 
   # http://stackoverflow.com/questions/737673/how-to-read-the-mode-field-of-git-ls-trees-output
   VALID_MODES = {
@@ -99,11 +113,13 @@ class GitObject
   private
 
   def load
-    @raw_content          = @repository.load_object(@sha1)
-    first_null_byte_index = @raw_content.index("\0")
-    @header               = @raw_content[0...first_null_byte_index]
-    @data                 = @raw_content[first_null_byte_index+1..-1]
-    @type, @size          = @header =~ /(\w+) (\d+)/ && [$1.to_sym, $2.to_i]
+    object_info = @repository.load_object(@sha1)
+
+    @raw_content = object_info[:raw_content]
+    @header      = object_info[:header]
+    @type        = object_info[:type]
+    @size        = object_info[:size]
+    @data        = object_info[:data]
   end
 end
 
@@ -316,7 +332,7 @@ class GitSubModule < SkippedFile
 end
 
 def run!(project_path)
-  repository = GitRepository.new(project_path)
+  repository = GitRepository.new(project_path, FileSystemParser)
   repository.head_fsck!
 end
 
