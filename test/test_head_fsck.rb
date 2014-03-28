@@ -105,7 +105,9 @@ class TestFsck < Test::Unit::TestCase
         repository = GitRepository.new(File.join(@git_repositories_folder, 'valid_with_merge'))
         commit     = Commit.find_or_initialize_by_sha1(repository, 'd07013e585bfc4844ae9e5b890bb4385516c3815')
 
-        assert_equal ["e -> A/e", :renamed, ["a04c515", "a04c515"]], commit.interesting_changes_introduced_by
+        assert_equal [
+          ["e -> A/e", :renamed, ["a04c515", "a04c515"]]
+        ], commit.interesting_changes_introduced_by
       end
     end
   end
