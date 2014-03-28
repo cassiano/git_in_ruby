@@ -45,6 +45,14 @@ class GitRepository
     head_commit.validate
   end
 
+  def load_object(sha1)
+    path = File.join(project_path, '.git', 'objects', sha1[0, 2], sha1[2..-1])
+
+    raise MissingObjectError, "File '#{path}' not found! Have you unpacked all pack files?" unless File.exists?(path)
+
+    Zlib::Inflate.inflate File.read(path)
+  end
+
   remember :head_commit_sha1
 end
 
@@ -91,12 +99,7 @@ class GitObject
   private
 
   def load
-    path = File.join(@repository.project_path, '.git', 'objects', @sha1[0, 2], @sha1[2..-1])
-
-    raise MissingObjectError, "File '#{path}' not found! Have you unpacked all pack files?" unless File.exists?(path)
-
-    zlib_content          = File.read(path)
-    @raw_content          = Zlib::Inflate.inflate(zlib_content)
+    @raw_content          = @repository.load_object(@sha1)
     first_null_byte_index = @raw_content.index("\0")
     @header               = @raw_content[0...first_null_byte_index]
     @data                 = @raw_content[first_null_byte_index+1..-1]
