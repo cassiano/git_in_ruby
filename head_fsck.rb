@@ -35,19 +35,19 @@ class AbstractGitRepository
     Commit.find_or_initialize_by_sha1 self, head_commit_sha1
   end
 
-  def head_commit_sha1
-    raise NotImplementedError
-  end
-
   def head_fsck!
     head_commit.validate
+  end
+
+  def head_commit_sha1
+    raise NotImplementedError
   end
 
   def load_object(sha1)
     raise NotImplementedError
   end
 
-  def parse_object
+  def parse_object(raw_content)
     raise NotImplementedError
   end
 
@@ -70,10 +70,10 @@ class FileSystemGitRepository < AbstractGitRepository
   def parse_object(raw_content)
     first_null_byte_index = raw_content.index("\0")
     header                = raw_content[0...first_null_byte_index]
-    data                  = raw_content[first_null_byte_index+1..-1]
     type, size            = header =~ /(\w+) (\d+)/ && [$1.to_sym, $2.to_i]
+    data                  = raw_content[first_null_byte_index+1..-1]
 
-    { raw_content: raw_content, type: type, size: size, data: data }
+    { type: type, size: size, data: data }
   end
 
   def load_object(sha1)
@@ -83,7 +83,7 @@ class FileSystemGitRepository < AbstractGitRepository
 
     raw_content = Zlib::Inflate.inflate File.read(path)
 
-    parse_object raw_content
+    { raw_content: raw_content }.merge parse_object(raw_content)
   end
 end
 
