@@ -29,7 +29,7 @@ class FileSystemParser
     data                  = raw_content[first_null_byte_index+1..-1]
     type, size            = header =~ /(\w+) (\d+)/ && [$1.to_sym, $2.to_i]
 
-    { raw_content: raw_content, header: header, data: data, type: type, size: size }
+    { raw_content: raw_content, data: data, type: type, size: size }
   end
 end
 
@@ -73,7 +73,7 @@ end
 class GitObject
   extend Memoize
 
-  attr_reader :repository, :sha1, :raw_content, :header, :type, :size, :data
+  attr_reader :repository, :sha1, :raw_content, :type, :size, :data
 
   # http://stackoverflow.com/questions/737673/how-to-read-the-mode-field-of-git-ls-trees-output
   VALID_MODES = {
@@ -116,7 +116,6 @@ class GitObject
     object_info = @repository.load_object(@sha1)
 
     @raw_content = object_info[:raw_content]
-    @header      = object_info[:header]
     @type        = object_info[:type]
     @size        = object_info[:size]
     @data        = object_info[:data]
