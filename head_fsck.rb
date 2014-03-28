@@ -22,26 +22,13 @@ class MissingObjectError        < StandardError; end
 class ExcessiveCommitDataError  < StandardError; end
 class MissingCommitDataError    < StandardError; end
 
-class FileSystemParser
-  def self.parse(raw_content)
-    first_null_byte_index = raw_content.index("\0")
-    header                = raw_content[0...first_null_byte_index]
-    data                  = raw_content[first_null_byte_index+1..-1]
-    type, size            = header =~ /(\w+) (\d+)/ && [$1.to_sym, $2.to_i]
-
-    { raw_content: raw_content, data: data, type: type, size: size }
-  end
-end
-
-class GitRepository
+class AbstractGitRepository
   extend Memoize
 
   attr_reader :project_path, :object_parser, :objects
 
-  def initialize(project_path, object_parser)
-    @project_path  = project_path
-    @object_parser = object_parser
-    @objects       = {}
+  def initialize(options = {})
+    @objects = {}
   end
 
   def head_commit
@@ -49,12 +36,44 @@ class GitRepository
   end
 
   def head_commit_sha1
-    head_ref_path = File.read(File.join(project_path, '.git', 'HEAD')).chomp[/\Aref: (.*)/, 1]
-    File.read(File.join(project_path, '.git', head_ref_path)).chomp
+    raise NotImplementedError
   end
 
   def head_fsck!
     head_commit.validate
+  end
+
+  def load_object(sha1)
+    raise NotImplementedError
+  end
+
+  def parse_object
+    raise NotImplementedError
+  end
+
+  remember :head_commit_sha1
+end
+
+class FileSystemGitRepository < AbstractGitRepository
+  attr_reader :project_path
+
+  def initialize(options = {})
+    super
+    @project_path  = options[:project_path]
+  end
+
+  def head_commit_sha1
+    head_ref_path = File.read(File.join(project_path, '.git', 'HEAD')).chomp[/\Aref: (.*)/, 1]
+    File.read(File.join(project_path, '.git', head_ref_path)).chomp
+  end
+
+  def parse_object(raw_content)
+    first_null_byte_index = raw_content.index("\0")
+    header                = raw_content[0...first_null_byte_index]
+    data                  = raw_content[first_null_byte_index+1..-1]
+    type, size            = header =~ /(\w+) (\d+)/ && [$1.to_sym, $2.to_i]
+
+    { raw_content: raw_content, type: type, size: size, data: data }
   end
 
   def load_object(sha1)
@@ -64,10 +83,8 @@ class GitRepository
 
     raw_content = Zlib::Inflate.inflate File.read(path)
 
-    object_parser.parse raw_content
+    parse_object raw_content
   end
-
-  remember :head_commit_sha1
 end
 
 class GitObject
@@ -101,13 +118,19 @@ class GitObject
     puts "(#{@commit_level}) Validating #{self.class.name} with SHA1 #{@sha1} "
 
     # Locate the ancestor class which is the immediate subclass of GitObject in the hierarchy chain (one of: Blob, Commit or Tree).
-    expected_type = (self.class.ancestors.find { |klass| klass.superclass == GitObject }).name.underscore.to_sym
+    expected_type = (self.class.ancestors.find { |cls| cls.superclass == GitObject }).name.underscore.to_sym
 
     raw_content_sha1 = Digest::SHA1.hexdigest(@raw_content)
 
     raise InvalidTypeError, "Invalid type '#{@type}' (expected '#{expected_type}')" unless @type == expected_type
     raise InvalidSizeError, "Invalid size #{@size} (expected #{@data.size})" unless @size == @data.size
     raise InvalidSha1Error, "Invalid SHA1 '#{@sha1}' (expected '#{raw_content_sha1}')" unless @sha1 == raw_content_sha1
+
+    validate_data
+  end
+
+  def validate_data
+    raise NotImplementedError
   end
 
   private
@@ -145,9 +168,7 @@ class Commit < GitObject
     end
   end
 
-  def validate
-    super
-
+  def validate_data
     tree.validate
     parents.each &:validate
   end
@@ -222,9 +243,7 @@ class Tree < GitObject
     @entries = read_entries
   end
 
-  def validate
-    super
-
+  def validate_data
     entries.values.each &:validate
   end
 
@@ -302,6 +321,9 @@ class Tree < GitObject
 end
 
 class Blob < GitObject
+  def validate_data
+  end
+
   remember :validate
 end
 
@@ -311,27 +333,19 @@ end
 class GroupWriteableFile < Blob
 end
 
-class SkippedFile < Blob
+class SymLink < Blob
+end
+
+class GitSubModule < Blob
+  def load
+  end
+
   def validate
   end
 end
 
-class SymLink < SkippedFile
-end
-
-class GitSubModule < SkippedFile
-  def initialize(repository, sha1, commit_level)
-    @repository   = repository
-    @sha1         = sha1
-    @commit_level = commit_level
-
-    # Notice how we MUST NOT call the :load method for Git Sub Modules, otherwise the associated Git object won't be
-    # found in the '.git/objects' folder, resulting in a MissingObjectError exception.
-  end
-end
-
 def run!(project_path)
-  repository = GitRepository.new(project_path, FileSystemParser)
+  repository = FileSystemGitRepository.new(project_path: project_path)
   repository.head_fsck!
 end
 
