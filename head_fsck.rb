@@ -22,13 +22,18 @@ class MissingObjectError        < StandardError; end
 class ExcessiveCommitDataError  < StandardError; end
 class MissingCommitDataError    < StandardError; end
 
-class AbstractGitRepository
+class GitRepository
   extend Memoize
 
-  attr_reader :project_path, :object_parser, :objects
+  attr_reader :bare_repository, :objects
 
   def initialize(options = {})
-    @objects = {}
+    options = {
+      bare_repository: false
+    }.merge(options)
+
+    @objects         = {}
+    @bare_repository = options[:bare_repository]
   end
 
   def head_commit
@@ -54,22 +59,17 @@ class AbstractGitRepository
   remember :head_commit_sha1
 end
 
-class FileSystemGitRepository < AbstractGitRepository
-  attr_reader :project_path, :bare
+class FileSystemGitRepository < GitRepository
+  attr_reader :project_path
 
   def initialize(options = {})
     super
 
-    options = {
-      bare: false
-    }.merge(options)
-
     @project_path = options[:project_path]
-    @bare         = options[:bare]
   end
 
   def git_path
-    bare ? project_path : File.join(project_path, '.git')
+    bare_repository ? project_path : File.join(project_path, '.git')
   end
 
   def head_commit_sha1
