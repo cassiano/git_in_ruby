@@ -29,7 +29,7 @@ class InvalidTreeData           < StandardError; end
 class GitRepository
   extend Memoize
 
-  attr_reader :bare_repository, :objects
+  attr_reader :objects
 
   def initialize(options = {})
     options = {
@@ -37,7 +37,11 @@ class GitRepository
     }.merge(options)
 
     @objects         = {}
-    @bare_repository = options[:bare_repository]
+    @bare_repository = !!options[:bare_repository]
+  end
+
+  def bare_repository?
+    @bare_repository
   end
 
   def head_commit
@@ -75,6 +79,8 @@ class GitRepository
     commit_sha1 = create_git_object!(:commit, data)
 
     update_branch! branch_name, commit_sha1
+
+    commit_sha1
   end
 
   private
@@ -112,7 +118,7 @@ class FileSystemGitRepository < GitRepository
   end
 
   def git_path
-    bare_repository ? project_path : File.join(project_path, '.git')
+    bare_repository? ? project_path : File.join(project_path, '.git')
   end
 
   def head_commit_sha1
