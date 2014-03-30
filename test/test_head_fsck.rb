@@ -29,10 +29,10 @@ class TestFsck < Test::Unit::TestCase
 
         commit = repository.create_commit!('master', tree2, [], @author_and_committer, @author_and_committer, "1st commit")
 
-        assert_equal Commit.find_or_initialize_by_sha1(commit), repository.head_commit
+        assert_equal commit, repository.head_commit.sha1
         assert_equal [], repository.head_commit.parents
-        assert_equal Tree.find_or_initialize_by_sha1(tree2), repository.head_commit.tree
-        assert_equal Tree.find_or_initialize_by_sha1(tree1), repository.head_commit.tree.entries['folder1']
+        assert_equal tree2, repository.head_commit.tree.sha1
+        assert_equal tree1, repository.head_commit.tree.entries['folder1'].sha1
 
         assert_nothing_raised do
           repository.head_fsck
