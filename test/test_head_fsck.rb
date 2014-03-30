@@ -8,7 +8,7 @@ class TestFsck < Test::Unit::TestCase
   end
 
   context 'MemoryGitRepository' do
-    context '#create_commit!' do
+    context 'create_blob!, create_tree! and #create_commit!' do
       setup do
         @author_and_committer = "Cassiano D'Andrea <cassiano.dandrea@tagview.com.br>"
       end
@@ -29,10 +29,10 @@ class TestFsck < Test::Unit::TestCase
 
         commit = repository.create_commit!('master', tree2, [], @author_and_committer, @author_and_committer, "1st commit")
 
-        assert_equal commit, repository.head_commit.sha1
-        assert_equal [], repository.head_commit.parents
-        assert_equal tree2, repository.head_commit.tree.sha1
-        assert_equal tree1, repository.head_commit.tree.entries['folder1'].sha1
+        assert_equal commit,  repository.head_commit.sha1
+        assert_equal [],      repository.head_commit.parents
+        assert_equal tree2,   repository.head_commit.tree.sha1
+        assert_equal tree1,   repository.head_commit.tree.entries['folder1'].sha1
 
         assert_nothing_raised do
           repository.head_fsck
