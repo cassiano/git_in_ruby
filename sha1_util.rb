@@ -10,4 +10,8 @@ module Sha1Util
   def self.hex_string_sha1(byte_sha1)
     byte_sha1.bytes.map { |b| "%02x" % b }.join
   end
+
+  def self.byte_array_sha1(sha1)
+    (1..20).map { |i| sha1[(i - 1) * 2, 2].to_i(16).chr }.join
+  end
 end

@@ -7,7 +7,34 @@ class TestFsck < Test::Unit::TestCase
     @git_repositories_folder = File.join(File.dirname(File.expand_path(__FILE__)), 'git_repositories')
   end
 
-  context 'GitRepository' do
+  context 'FileSystemGitRepository' do
+    context '#create_commit' do
+      setup do
+        @committer = 'Cassiano D Andrea <cassiano.dandrea@tagview.com.br>'
+      end
+
+      test 'creates a valid commit object with no parent' do
+        repository = FileSystemGitRepository.new(project_path: File.join(@git_repositories_folder, 'dynamic'))
+
+        blob1 = repository.create_blob('blob1 content')
+        blob2 = repository.create_blob('blob2 content')
+
+        tree1 = repository.create_tree([
+          [:blob, 'file1', blob1]
+        ])
+        tree2 = repository.create_tree([
+          [:blob, 'file2',    blob2],
+          [:tree, 'folder1',  tree1]
+        ])
+
+        commit = repository.create_commit('master', tree2, [], @committer, "1st commit")
+
+        assert_nothing_raised do
+          repository.head_fsck!
+        end
+      end
+    end
+
     context '#head_fsck!' do
       test 'checks for invalid mode' do
         assert_raise InvalidModeError do

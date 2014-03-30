@@ -1,3 +1,5 @@
+# encoding: US-ASCII
+
 #!/usr/bin/env ruby
 
 # To make sure all objects are "loose":
@@ -8,6 +10,7 @@
 require 'digest/sha1'
 require 'zlib'
 require 'fileutils'
+# require 'debug'
 
 require File.join(File.dirname(File.expand_path(__FILE__)), 'memoize')
 require File.join(File.dirname(File.expand_path(__FILE__)), 'sha1_util')
@@ -21,6 +24,7 @@ class InvalidTypeError          < StandardError; end
 class MissingObjectError        < StandardError; end
 class ExcessiveCommitDataError  < StandardError; end
 class MissingCommitDataError    < StandardError; end
+class InvalidTreeData           < StandardError; end
 
 class GitRepository
   extend Memoize
@@ -56,6 +60,45 @@ class GitRepository
     raise NotImplementedError
   end
 
+  def create_blob(data)
+    create_git_object :blob, data
+  end
+
+  def create_tree(entries)
+    data = format_tree_data(entries)
+
+    create_git_object :tree, data
+  end
+
+  def create_commit(branch_name, tree_sha1, parents_sha1, subject, author, committer = author)
+    data        = format_commit_data(tree_sha1, parents_sha1, subject, author, committer)
+    commit_sha1 = create_git_object(:commit, data)
+
+    update_branch branch_name, commit_sha1
+  end
+
+  private
+
+  def create_git_object(type, data)
+    raise NotImplementedError
+  end
+
+  def format_tree_data(entries)
+    raise NotImplementedError
+  end
+
+  def format_commit_data(tree_sha1, parents_sha1, subject, author, committer)
+    raise NotImplementedError
+  end
+
+  def update_branch(name, commit_sha1)
+    raise NotImplementedError
+  end
+
+  def branches
+    raise NotImplementedError
+  end
+
   remember :head_commit_sha1
 end
 
@@ -88,13 +131,57 @@ class FileSystemGitRepository < GitRepository
   end
 
   def load_object(sha1)
-    path = File.join(git_path, 'objects', sha1[0, 2], sha1[2..-1])
+    path = File.join(git_path, 'objects', sha1[0..1], sha1[2..-1])
 
     raise MissingObjectError, "File '#{path}' not found! Have you unpacked all pack files?" unless File.exists?(path)
 
     raw_content = Zlib::Inflate.inflate File.read(path)
 
     parse_object(raw_content).merge content_sha1: Digest::SHA1.hexdigest(raw_content)
+  end
+
+  def create_git_object(type, data)
+    header      = "#{type} #{data.size}\0"
+    raw_content = header + data
+    sha1        = Digest::SHA1.hexdigest(raw_content)    # 40-character string.
+    path        = File.join(git_path, 'objects', sha1[0..1], sha1[2..-1])
+
+    unless File.exists?(path)
+      zipped_content = Zlib::Deflate.deflate(raw_content)
+
+      FileUtils.mkpath File.dirname(path)
+      File.write path, zipped_content
+    end
+
+    sha1
+  end
+
+  def format_tree_data(entries)
+    entries.map { |entry|
+      GitObject.mode_for_type(entry[0]) + " " + entry[1] + "\0" + Sha1Util.byte_array_sha1(entry[2])
+    }.join
+  end
+
+  def format_commit_data(tree_sha1, parents_sha1, subject, author, committer = author)
+    data = ""
+    data << "tree #{tree_sha1}\n"
+    data << parents_sha1.map { |sha1| "parent #{sha1}\n" }.join
+    data << "author #{author} #{Time.now.to_i} -0300\n"
+    data << "committer #{committer} #{Time.now.to_i} -0300\n"
+    data << "\n"
+    data << subject + "\n"
+  end
+
+  def update_branch(name, commit_sha1)
+    File.write File.join(git_path, 'refs', 'heads', name), commit_sha1 + "\n"
+  end
+
+  def branches
+    names = Dir.entries(File.join(git_path, 'refs', 'heads'))
+    names.delete('.')
+    names.delete('..')
+
+    names
   end
 end
 
@@ -126,7 +213,7 @@ class GitObject
   end
 
   def validate
-    puts "(#{commit_level}) Validating #{self.class.name} with SHA1 #{sha1} "
+    puts "(#{commit_level}) Validating #{self.class.name} with SHA1 #{sha1}"
 
     # Locate the ancestor class which is the immediate subclass of GitObject in the hierarchy chain (one of: Blob, Commit or Tree).
     expected_type = (self.class.ancestors.find { |cls| cls.superclass == GitObject }).name.underscore.to_sym
@@ -142,10 +229,14 @@ class GitObject
     raise NotImplementedError
   end
 
+  def self.mode_for_type(type)
+    VALID_MODES.inject({}) { |acc, (mode, object_type)| acc.merge object_type.underscore.to_sym => mode }[type]
+  end
+
   private
 
   def load
-    object_info = repository.load_object(@sha1)
+    object_info = repository.load_object(sha1)
 
     @content_sha1 = object_info[:content_sha1]
     @type         = object_info[:type]
@@ -155,25 +246,35 @@ class GitObject
 end
 
 class Commit < GitObject
-  attr_reader :tree, :author, :date, :subject
-
-  def initialize(repository, sha1, commit_level)
-    super
-
-    @tree          = Tree.find_or_initialize_by_sha1(@repository, read_row('tree'), @commit_level)
-    @author, @date = read_row('author') =~ /(.*) (\d+) [+-]\d{4}/ && [$1, Time.at($2.to_i)]
-    @subject       = read_subject
+  def tree
+    Tree.find_or_initialize_by_sha1 repository, read_row('tree'), commit_level
   end
 
   def parents
-    read_rows('parent').map { |sha1| Commit.find_or_initialize_by_sha1(@repository, sha1, @commit_level + 1) }
+    read_rows('parent').map { |sha1| Commit.find_or_initialize_by_sha1(repository, sha1, commit_level + 1) }
+  end
+
+  def author
+    read_row('author') =~ /(.*) (\d+) [+-]\d{4}/ && [$1, Time.at($2.to_i)]
+  end
+
+  def committer
+    read_row('committer') =~ /(.*) (\d+) [+-]\d{4}/ && [$1, Time.at($2.to_i)]
+  end
+
+  def subject
+    rows = data.split("\n")
+    raise MissingCommitDataError, "Missing subject in commit." unless (empty_row_index = rows.index(''))
+    rows[empty_row_index+1..-1].join("\n")
   end
 
   def parent
-    if parents.size == 1
+    if parents.size == 0
+      nil
+    elsif parents.size == 1
       parents[0]
     else
-      raise "Zero or more than one parent commit found."
+      raise "More than one parent commit found."
     end
   end
 
@@ -184,23 +285,22 @@ class Commit < GitObject
 
   def checkout!(destination_path = File.join('checkout_files', sha1[0..6]))
     FileUtils.mkpath destination_path
-
     tree.checkout! destination_path
   end
 
-  def interesting_changes_introduced_by
-    updates_and_creations = tree.interesting_changes_between(parents.map(&:tree))
+  def changes_introduced_by
+    updates_and_creations = tree.changes_between(parents.map(&:tree))
 
     # Find deletions between the current commit and its parents by finding the *common* additions the other way around, i.e.
     # between each of the parents and the current commit, then transforming them into deletions.
     deletions = parents.map { |parent|
-      parent.tree.interesting_changes_between([tree]).find_all { |(_, action, _)| action == :created }.map { |name, _, sha1s| [name, :deleted, sha1s.reverse] }
+      parent.tree.changes_between([tree]).find_all { |(_, action, _)| action == :created }.map { |name, _, sha1s| [name, :deleted, sha1s.reverse] }
     }.inject(:&) || []
     updates_and_creations.concat deletions
 
     # Identify renamed files, replacing the :created and :deleted associated pair by a single :renamed one.
-    updates_and_creations.find_all { |(_, action, _)| action == :created }.inject(updates_and_creations) { |changes, created_file|
-      if (deleted_file = changes.find { |(_, action, (deleted_sha1, _))| action == :deleted && deleted_sha1 == created_file[2][1] })
+    updates_and_creations.find_all { |(_, action, _)| action == :deleted }.inject(updates_and_creations) { |changes, deleted_file|
+      if (created_file = changes.find { |(_, action, (_, created_sha1))| action == :created && created_sha1 == deleted_file[2][0] })
         changes.delete created_file
         changes.delete deleted_file
         changes << ["#{deleted_file[0]} -> #{created_file[0]}", :renamed, [deleted_file[2][0], created_file[2][1]]]
@@ -225,31 +325,33 @@ class Commit < GitObject
   end
 
   def read_rows(label)
-    rows = @data.split("\n")
+    rows = data.split("\n")
 
-    rows.find_all { |row| row.split[0] == label }.map { |row| row[/\A\w+ (.*)/, 1] }
+    # Returne all rows containing the searched label, making sure we do not read data after the 1st empty row
+    # (which usually contains a commit's subject).
+    rows[0...(rows.index('') || -1)].find_all { |row| row.split[0] == label }.map { |row| row[/\A\w+ (.*)/, 1] }
   end
 
-  def read_subject
-    rows = @data.split("\n")
-
-    if !(empty_row_index = rows.index(''))
-      raise MissingCommitDataError, "Missing subject in commit."
-    end
-
-    rows[empty_row_index+1..-1].join("\n")
-  end
-
-  remember :parents, :validate
+  remember :tree, :parents, :author, :committer, :subject, :validate
 end
 
 class Tree < GitObject
-  attr_reader :entries
+  def entries
+    bytes_processed = 0
 
-  def initialize(repository, sha1, commit_level)
-    super
+    items = data.scan(/(\d+) ([^\0]+)\0([\x00-\xFF]{20})/).inject({}) do |acc, (mode, name, sha1)|
+      bytes_processed += mode.size + name.size + 22   # 22 = ' '.size + "\0".size + sha1.size
 
-    @entries = read_entries
+      raise InvalidModeError, "Invalid mode #{mode} in file '#{name}'" unless VALID_MODES[mode]
+
+      # Instantiate the object, based on its mode (Blob, Tree, ExecutableFile etc).
+      acc.merge name => Object.const_get(VALID_MODES[mode]).find_or_initialize_by_sha1(repository, sha1, commit_level)
+    end
+
+    # Check if data contains any additional non-processed bytes.
+    raise InvalidTreeData, 'The tree contains invalid data' if bytes_processed != data.size
+
+    items
   end
 
   def validate_data
@@ -264,12 +366,7 @@ class Tree < GitObject
 
       case entry
         when ExecutableFile, GroupWriteableFile, Blob then
-          filemode =
-            case entry
-              when ExecutableFile     then  0755
-              when GroupWriteableFile then  0664
-              else                          0644    # Blob
-            end
+          filemode = { ExecutableFile => 0755, GroupWriteableFile => 0664, Blob => 0644 }[entry.class]
 
           File.write filename_or_path, entry.data
           File.chmod filemode, filename_or_path
@@ -284,7 +381,7 @@ class Tree < GitObject
     end
   end
 
-  def interesting_changes_between(other_trees, base_path = nil)
+  def changes_between(other_trees, base_path = nil)
     entries.inject([]) do |changes, (name, entry)|
       filename_or_path = base_path ? File.join(base_path, name) : name
 
@@ -302,7 +399,7 @@ class Tree < GitObject
 
         if action   # A nil action indicates an unchanged file.
           if Tree === entry
-            changes.concat entry.interesting_changes_between(other_entries.find_all { |e| Tree === e }, filename_or_path)
+            changes.concat entry.changes_between(other_entries.find_all { |e| Tree === e }, filename_or_path)
           else    # Blob or one of its subclasses.
             changes << [filename_or_path, action, sha1s]
           end
@@ -315,18 +412,7 @@ class Tree < GitObject
     end
   end
 
-  private
-
-  def read_entries
-    @data.scan(/(\d+) ([^\0]+)\0([\x00-\xFF]{20})/).inject({}) do |entries, (mode, name, sha1)|
-      raise InvalidModeError, "Invalid mode #{mode} in file '#{name}'" unless VALID_MODES[mode]
-
-      # Instantiate the object, based on its mode (Blob, Tree, ExecutableFile etc).
-      entries.merge name => Object.const_get(VALID_MODES[mode]).find_or_initialize_by_sha1(@repository, sha1, @commit_level)
-    end
-  end
-
-  remember :validate
+  remember :entries, :changes_between, :validate
 end
 
 class Blob < GitObject
@@ -353,9 +439,20 @@ class GitSubModule < Blob
   end
 end
 
-def run!(project_path)
-  repository = FileSystemGitRepository.new(project_path: project_path)
+def run!(project_path, bare_repository)
+  repository = FileSystemGitRepository.new(project_path: project_path, bare_repository: bare_repository)
   repository.head_fsck!
 end
 
-run! ARGV[0] || '.' if __FILE__ == $0
+# $enable_tracing = false
+# $trace_out = open('/tmp/trace.txt', 'w')
+#
+# set_trace_func proc { |event, file, line, id, binding, classname|
+#   if $enable_tracing && event == 'call'
+#     $trace_out.puts "#{file}:#{line} #{classname}##{id}"
+#   end
+# }
+#
+# $enable_tracing = true
+
+run! ARGV[0] || '.', ARGV[1] && ARGV[1].downcase == 'bare' if __FILE__ == $0
