@@ -149,7 +149,7 @@ class FileSystemGitRepository < GitRepository
   def create_git_object!(type, data)
     header      = "#{type} #{data.size}\0"
     raw_content = header + data
-    sha1        = Digest::SHA1.hexdigest(raw_content)    # 40-character string.
+    sha1        = Digest::SHA1.hexdigest(raw_content)
     path        = File.join(git_path, 'objects', sha1[0..1], sha1[2..-1])
 
     unless File.exists?(path)
@@ -215,12 +215,12 @@ class MemoryGitRepository < GitRepository
 
     raw_content = objects[sha1]
 
-    parse_object(raw_content).merge content_sha1: Digest::SHA1.hexdigest(raw_content.values.map(&:to_s).join("\n"))
+    parse_object(raw_content).merge content_sha1: sha1_from_raw_content(raw_content)
   end
 
   def create_git_object!(type, data)
     raw_content = { type: type, size: data.size, data: data }
-    sha1        = Digest::SHA1.hexdigest(raw_content.values.map(&:to_s).join("\n"))    # 40-character string.
+    sha1        = sha1_from_raw_content(raw_content)
 
     objects[sha1] ||= raw_content
 
@@ -249,6 +249,12 @@ class MemoryGitRepository < GitRepository
 
   def branch_names
     branches.keys
+  end
+
+  private
+
+  def sha1_from_raw_content(raw_content)
+    Digest::SHA1.hexdigest raw_content.values.map(&:to_s).join("\n")
   end
 end
 
