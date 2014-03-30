@@ -44,8 +44,8 @@ class GitRepository
     @bare_repository
   end
 
-  def head_commit
-    Commit.find_or_initialize_by_sha1 self, head_commit_sha1
+  def head_commit(options = {})
+    Commit.find_or_initialize_by_sha1 self, head_commit_sha1, options
   end
 
   def head_fsck
@@ -273,16 +273,26 @@ class GitObject
     '160000' => 'GitSubModule'
   }
 
-  def self.find_or_initialize_by_sha1(repository, sha1, commit_level = 1)
-    repository.instances[sha1] ||= new(repository, Sha1Util.standardized_sha1(sha1), commit_level)
+  def self.find_or_initialize_by_sha1(repository, sha1, options = {})
+    repository.instances[sha1] ||= new(repository, Sha1Util.standardized_sha1(sha1), options)
   end
 
-  def initialize(repository, sha1, commit_level)
-    @repository   = repository
-    @sha1         = sha1
-    @commit_level = commit_level
+  def initialize(repository, sha1, options = {})
+    options = {
+      commit_level: 1,
+      load_blob_data: false
+    }.merge(options)
+
+    @repository     = repository
+    @sha1           = sha1
+    @commit_level   = options[:commit_level]
+    @load_blob_data = !!options[:load_blob_data]
 
     load
+  end
+
+  def load_blob_data?
+    @load_blob_data
   end
 
   def validate
@@ -292,7 +302,6 @@ class GitObject
     expected_type = (self.class.ancestors.find { |cls| cls.superclass == GitObject }).name.underscore.to_sym
 
     raise InvalidTypeError, "Invalid type '#{type}' (expected '#{expected_type}')"  unless type == expected_type
-    raise InvalidSizeError, "Invalid size #{size} (expected #{data.size})"          unless size == data.size
     raise InvalidSha1Error, "Invalid SHA1 '#{sha1}' (expected '#{content_sha1}')"   unless sha1 == content_sha1
 
     validate_data
@@ -314,17 +323,22 @@ class GitObject
     @content_sha1 = object_info[:content_sha1]
     @type         = object_info[:type]
     @size         = object_info[:size]
-    @data         = object_info[:data]
+    @data         = object_info[:data] unless type == :blob && !load_blob_data?
+
+    # Since the data will not always be available, its size must be checked here (and not later, in the :validate method).
+    raise InvalidSizeError, "Invalid size #{object_info[:size]} (expected #{object_info[:data].size})" unless object_info[:size] == object_info[:data].size
   end
 end
 
 class Commit < GitObject
   def tree
-    Tree.find_or_initialize_by_sha1 repository, read_row('tree'), commit_level
+    Tree.find_or_initialize_by_sha1 repository, read_row('tree'), commit_level: commit_level, load_blob_data: load_blob_data?
   end
 
   def parents
-    read_rows('parent').map { |sha1| Commit.find_or_initialize_by_sha1(repository, sha1, commit_level + 1) }
+    read_rows('parent').map do |sha1|
+      Commit.find_or_initialize_by_sha1(repository, sha1, commit_level: commit_level + 1, load_blob_data: load_blob_data?)
+    end
   end
 
   def author
@@ -418,7 +432,9 @@ class Tree < GitObject
       raise InvalidModeError, "Invalid mode #{mode} in file '#{name}'" unless VALID_MODES[mode]
 
       # Instantiate the object, based on its mode (Blob, Tree, ExecutableFile etc).
-      acc.merge name => Object.const_get(VALID_MODES[mode]).find_or_initialize_by_sha1(repository, sha1, commit_level)
+      acc.merge name => Object.const_get(VALID_MODES[mode]).find_or_initialize_by_sha1(
+        repository, sha1, commit_level: commit_level, load_blob_data: load_blob_data?
+      )
     end
 
     # Check if data contains any additional non-processed bytes.
