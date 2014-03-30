@@ -44,7 +44,7 @@ class GitRepository
     Commit.find_or_initialize_by_sha1 self, head_commit_sha1
   end
 
-  def head_fsck!
+  def head_fsck
     head_commit.validate
   end
 
@@ -60,26 +60,26 @@ class GitRepository
     raise NotImplementedError
   end
 
-  def create_blob(data)
-    create_git_object :blob, data
+  def create_blob!(data)
+    create_git_object! :blob, data
   end
 
-  def create_tree(entries)
+  def create_tree!(entries)
     data = format_tree_data(entries)
 
-    create_git_object :tree, data
+    create_git_object! :tree, data
   end
 
-  def create_commit(branch_name, tree_sha1, parents_sha1, subject, author, committer = author)
-    data        = format_commit_data(tree_sha1, parents_sha1, subject, author, committer)
-    commit_sha1 = create_git_object(:commit, data)
+  def create_commit!(branch_name, tree_sha1, parents_sha1, author, committer, subject)
+    data        = format_commit_data(tree_sha1, parents_sha1, author, committer, subject)
+    commit_sha1 = create_git_object!(:commit, data)
 
-    update_branch branch_name, commit_sha1
+    update_branch! branch_name, commit_sha1
   end
 
   private
 
-  def create_git_object(type, data)
+  def create_git_object!(type, data)
     raise NotImplementedError
   end
 
@@ -87,11 +87,11 @@ class GitRepository
     raise NotImplementedError
   end
 
-  def format_commit_data(tree_sha1, parents_sha1, subject, author, committer)
+  def format_commit_data(tree_sha1, parents_sha1, author, committer, subject)
     raise NotImplementedError
   end
 
-  def update_branch(name, commit_sha1)
+  def update_branch!(name, commit_sha1)
     raise NotImplementedError
   end
 
@@ -140,7 +140,7 @@ class FileSystemGitRepository < GitRepository
     parse_object(raw_content).merge content_sha1: Digest::SHA1.hexdigest(raw_content)
   end
 
-  def create_git_object(type, data)
+  def create_git_object!(type, data)
     header      = "#{type} #{data.size}\0"
     raw_content = header + data
     sha1        = Digest::SHA1.hexdigest(raw_content)    # 40-character string.
@@ -162,7 +162,7 @@ class FileSystemGitRepository < GitRepository
     }.join
   end
 
-  def format_commit_data(tree_sha1, parents_sha1, subject, author, committer = author)
+  def format_commit_data(tree_sha1, parents_sha1, author, committer, subject)
     data = ""
     data << "tree #{tree_sha1}\n"
     data << parents_sha1.map { |sha1| "parent #{sha1}\n" }.join
@@ -172,7 +172,7 @@ class FileSystemGitRepository < GitRepository
     data << subject + "\n"
   end
 
-  def update_branch(name, commit_sha1)
+  def update_branch!(name, commit_sha1)
     File.write File.join(git_path, 'refs', 'heads', name), commit_sha1 + "\n"
   end
 
@@ -441,7 +441,7 @@ end
 
 def run!(project_path, bare_repository)
   repository = FileSystemGitRepository.new(project_path: project_path, bare_repository: bare_repository)
-  repository.head_fsck!
+  repository.head_fsck
 end
 
 # $enable_tracing = false
