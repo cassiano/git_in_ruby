@@ -7,14 +7,14 @@ class TestFsck < Test::Unit::TestCase
     @git_repositories_folder = File.join(File.dirname(File.expand_path(__FILE__)), 'git_repositories')
   end
 
-  context 'FileSystemGitRepository' do
+  context 'MemoryGitRepository' do
     context '#create_commit!' do
       setup do
-        @author_and_committer = 'Cassiano D Andrea <cassiano.dandrea@tagview.com.br>'
+        @author_and_committer = "Cassiano D'Andrea <cassiano.dandrea@tagview.com.br>"
       end
 
       test 'creates a valid commit object with no parent' do
-        repository = FileSystemGitRepository.new(project_path: File.join(@git_repositories_folder, 'dynamic'))
+        repository = MemoryGitRepository.new
 
         blob1 = repository.create_blob!('blob1 content')
         blob2 = repository.create_blob!('blob2 content')
@@ -39,7 +39,9 @@ class TestFsck < Test::Unit::TestCase
         end
       end
     end
+  end
 
+  context 'FileSystemGitRepository' do
     context '#head_fsck' do
       test 'checks for invalid mode' do
         assert_raise InvalidModeError do

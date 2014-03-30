@@ -29,14 +29,14 @@ class InvalidTreeData           < StandardError; end
 class GitRepository
   extend Memoize
 
-  attr_reader :objects
+  attr_reader :instances
 
   def initialize(options = {})
     options = {
       bare_repository: false
     }.merge(options)
 
-    @objects         = {}
+    @instances       = {}
     @bare_repository = !!options[:bare_repository]
   end
 
@@ -182,12 +182,73 @@ class FileSystemGitRepository < GitRepository
     File.write File.join(git_path, 'refs', 'heads', name), commit_sha1 + "\n"
   end
 
-  def branches
+  def branch_names
     names = Dir.entries(File.join(git_path, 'refs', 'heads'))
     names.delete('.')
     names.delete('..')
 
     names
+  end
+end
+
+class MemoryGitRepository < GitRepository
+  attr_reader :branches, :head, :objects
+
+  def initialize(options = {})
+    super
+
+    @branches = {}
+    @head     = 'master'
+    @objects  = {}
+  end
+
+  def head_commit_sha1
+    branches[head]
+  end
+
+  def parse_object(raw_content)
+    raw_content
+  end
+
+  def load_object(sha1)
+    raise MissingObjectError, "Object not found!" unless objects[sha1]
+
+    raw_content = objects[sha1]
+
+    parse_object(raw_content).merge content_sha1: Digest::SHA1.hexdigest(raw_content.values.map(&:to_s).join("\n"))
+  end
+
+  def create_git_object!(type, data)
+    raw_content = { type: type, size: data.size, data: data }
+    sha1        = Digest::SHA1.hexdigest(raw_content.values.map(&:to_s).join("\n"))    # 40-character string.
+
+    objects[sha1] ||= raw_content
+
+    sha1
+  end
+
+  def format_tree_data(entries)
+    entries.map { |entry|
+      GitObject.mode_for_type(entry[0]) + " " + entry[1] + "\0" + Sha1Util.byte_array_sha1(entry[2])
+    }.join
+  end
+
+  def format_commit_data(tree_sha1, parents_sha1, author, committer, subject)
+    data = ""
+    data << "tree #{tree_sha1}\n"
+    data << parents_sha1.map { |sha1| "parent #{sha1}\n" }.join
+    data << "author #{author} #{Time.now.to_i} -0300\n"
+    data << "committer #{committer} #{Time.now.to_i} -0300\n"
+    data << "\n"
+    data << subject + "\n"
+  end
+
+  def update_branch!(name, commit_sha1)
+    branches[name] = commit_sha1
+  end
+
+  def branch_names
+    branches.keys
   end
 end
 
@@ -207,7 +268,7 @@ class GitObject
   }
 
   def self.find_or_initialize_by_sha1(repository, sha1, commit_level = 1)
-    repository.objects[sha1] ||= new(repository, Sha1Util.standardized_sha1(sha1), commit_level)
+    repository.instances[sha1] ||= new(repository, Sha1Util.standardized_sha1(sha1), commit_level)
   end
 
   def initialize(repository, sha1, commit_level)
