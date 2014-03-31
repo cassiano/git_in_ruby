@@ -65,8 +65,13 @@ class GitRepository
     raise NotImplementedError
   end
 
-  def create_blob!(data)
-    create_git_object! :blob, data
+  def create_commit!(branch_name, tree_sha1, parents_sha1, author, committer, subject)
+    data        = format_commit_data(tree_sha1, parents_sha1, author, committer, subject)
+    commit_sha1 = create_git_object!(:commit, data)
+
+    update_branch! branch_name, commit_sha1
+
+    commit_sha1
   end
 
   def create_tree!(entries)
@@ -75,13 +80,8 @@ class GitRepository
     create_git_object! :tree, data
   end
 
-  def create_commit!(branch_name, tree_sha1, parents_sha1, author, committer, subject)
-    data        = format_commit_data(tree_sha1, parents_sha1, author, committer, subject)
-    commit_sha1 = create_git_object!(:commit, data)
-
-    update_branch! branch_name, commit_sha1
-
-    commit_sha1
+  def create_blob!(data)
+    create_git_object! :blob, data
   end
 
   def parse_commit_data(commit)
