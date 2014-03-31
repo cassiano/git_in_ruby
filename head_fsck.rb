@@ -60,6 +60,7 @@ class GitRepository
     raise NotImplementedError
   end
 
+  # Must return a hash with the following keys: type, size and data.
   def parse_object(raw_content)
     raise NotImplementedError
   end
@@ -83,17 +84,11 @@ class GitRepository
     commit_sha1
   end
 
-  private
-
-  def create_git_object!(type, data)
+  def parse_commit_data(commit)
     raise NotImplementedError
   end
 
-  def format_tree_data(entries)
-    raise NotImplementedError
-  end
-
-  def format_commit_data(tree_sha1, parents_sha1, author, committer, subject)
+  def parse_tree_data(tree)
     raise NotImplementedError
   end
 
@@ -102,6 +97,20 @@ class GitRepository
   end
 
   def branches
+    raise NotImplementedError
+  end
+
+  protected
+
+  def create_git_object!(type, data)
+    raise NotImplementedError
+  end
+
+  def format_commit_data(tree_sha1, parents_sha1, author, committer, subject)
+    raise NotImplementedError
+  end
+
+  def format_tree_data(entries)
     raise NotImplementedError
   end
 
@@ -136,6 +145,45 @@ class FileSystemGitRepository < GitRepository
     { type: type, size: size, data: data }
   end
 
+  def format_commit_data(tree_sha1, parents_sha1, author, committer, subject)
+    data = ""
+    data << "tree #{tree_sha1}\n"
+    data << parents_sha1.map { |sha1| "parent #{sha1}\n" }.join
+    data << "author #{author} #{Time.now.to_i} -0300\n"
+    data << "committer #{committer} #{Time.now.to_i} -0300\n"
+    data << "\n"
+    data << subject + "\n"
+  end
+
+  def parse_commit_data(data)
+    {
+      tree_sha1:    read_commit_data_row(data, 'tree'),
+      parents_sha1: read_commit_data_rows(data, 'parent'),
+      author:       read_commit_data_row(data, 'author')     =~ /(.*) (\d+) [+-]\d{4}/ && [$1, Time.at($2.to_i)],
+      committer:    read_commit_data_row(data, 'committer')  =~ /(.*) (\d+) [+-]\d{4}/ && [$1, Time.at($2.to_i)],
+      subject:      read_subject_rows(data)
+    }
+  end
+
+  def format_tree_data(entries)
+    entries.map { |entry|
+      GitObject.mode_for_type(entry[0]) + " " + entry[1] + "\0" + Sha1Util.byte_array_sha1(entry[2])
+    }.join
+  end
+
+  def parse_tree_data(data)
+    entries_info = data.scan(/(\d+) ([^\0]+)\0([\x00-\xFF]{20})/)
+
+    total_bytes = entries_info.inject(0) do |sum, (mode, name, _)|
+      sum + mode.size + name.size + 22   # 22 = " ".size + "\0".size + sha1.size
+    end
+
+    # Check if data contains any additional non-processed bytes.
+    raise InvalidTreeData, 'The tree contains invalid data' if total_bytes != data.size
+
+    { entries_info: entries_info }
+  end
+
   def load_object(sha1)
     path = File.join(git_path, 'objects', sha1[0..1], sha1[2..-1])
 
@@ -162,22 +210,6 @@ class FileSystemGitRepository < GitRepository
     sha1
   end
 
-  def format_tree_data(entries)
-    entries.map { |entry|
-      GitObject.mode_for_type(entry[0]) + " " + entry[1] + "\0" + Sha1Util.byte_array_sha1(entry[2])
-    }.join
-  end
-
-  def format_commit_data(tree_sha1, parents_sha1, author, committer, subject)
-    data = ""
-    data << "tree #{tree_sha1}\n"
-    data << parents_sha1.map { |sha1| "parent #{sha1}\n" }.join
-    data << "author #{author} #{Time.now.to_i} -0300\n"
-    data << "committer #{committer} #{Time.now.to_i} -0300\n"
-    data << "\n"
-    data << subject + "\n"
-  end
-
   def update_branch!(name, commit_sha1)
     File.write File.join(git_path, 'refs', 'heads', name), commit_sha1 + "\n"
   end
@@ -188,6 +220,36 @@ class FileSystemGitRepository < GitRepository
     names.delete('..')
 
     names
+  end
+
+  private
+
+  def read_commit_data_row(data, label)
+    rows = read_commit_data_rows(data, label)
+
+    if rows.size == 0
+      raise MissingCommitDataError, "Missing #{label} in commit."
+    elsif rows.size > 1
+      raise ExcessiveCommitDataError, "Excessive #{label} rows in commit."
+    end
+
+    rows[0]
+  end
+
+  def read_commit_data_rows(data, label)
+    rows = data.split("\n")
+
+    # Returne all rows containing the searched label, making sure we do not read data after the 1st empty row
+    # (which usually contains a commit's subject).
+    rows[0...(rows.index('') || -1)].find_all { |row| row.split[0] == label }.map { |row| row[/\A\w+ (.*)/, 1] }
+  end
+
+  def read_subject_rows(data)
+    rows = data.split("\n")
+
+    raise MissingCommitDataError, "Missing subject in commit." unless (empty_row_index = rows.index(''))
+
+    rows[empty_row_index+1..-1].join("\n")
   end
 end
 
@@ -207,7 +269,29 @@ class MemoryGitRepository < GitRepository
   end
 
   def parse_object(raw_content)
-    raw_content
+    { type: raw_content[0], size: raw_content[1], data: raw_content[2] }
+  end
+
+  def format_commit_data(tree_sha1, parents_sha1, author, committer, subject)
+    [tree_sha1, parents_sha1, author, committer, subject]
+  end
+
+  def parse_commit_data(data)
+    {
+      tree_sha1:    data[0],
+      parents_sha1: data[1],
+      author:       data[2],
+      committer:    data[3],
+      subject:      data[4]
+    }
+  end
+
+  def format_tree_data(entries)
+    entries.map { |entry| [GitObject.mode_for_type(entry[0]), entry[1], entry[2]] }
+  end
+
+  def parse_tree_data(data)
+    { entries_info: data }
   end
 
   def load_object(sha1)
@@ -219,28 +303,12 @@ class MemoryGitRepository < GitRepository
   end
 
   def create_git_object!(type, data)
-    raw_content = { type: type, size: data.size, data: data }
+    raw_content = [type, data.size, data]
     sha1        = sha1_from_raw_content(raw_content)
 
     objects[sha1] ||= raw_content
 
     sha1
-  end
-
-  def format_tree_data(entries)
-    entries.map { |entry|
-      GitObject.mode_for_type(entry[0]) + " " + entry[1] + "\0" + Sha1Util.byte_array_sha1(entry[2])
-    }.join
-  end
-
-  def format_commit_data(tree_sha1, parents_sha1, author, committer, subject)
-    data = ""
-    data << "tree #{tree_sha1}\n"
-    data << parents_sha1.map { |sha1| "parent #{sha1}\n" }.join
-    data << "author #{author} #{Time.now.to_i} -0300\n"
-    data << "committer #{committer} #{Time.now.to_i} -0300\n"
-    data << "\n"
-    data << subject + "\n"
   end
 
   def update_branch!(name, commit_sha1)
@@ -254,7 +322,7 @@ class MemoryGitRepository < GitRepository
   private
 
   def sha1_from_raw_content(raw_content)
-    Digest::SHA1.hexdigest raw_content.values.map(&:to_s).join("\n")
+    Digest::SHA1.hexdigest raw_content.map(&:to_s).join("\n")
   end
 end
 
@@ -274,7 +342,7 @@ class GitObject
   }
 
   def self.find_or_initialize_by_sha1(repository, sha1, options = {})
-    repository.instances[sha1] ||= new(repository, Sha1Util.standardized_sha1(sha1), options)
+    repository.instances[sha1] ||= new(repository, Sha1Util.standardized_hex_string_sha1(sha1), options)
   end
 
   def initialize(repository, sha1, options = {})
@@ -315,44 +383,39 @@ class GitObject
     VALID_MODES.inject({}) { |acc, (mode, object_type)| acc.merge object_type.underscore.to_sym => mode }[type]
   end
 
-  private
+  protected
+
+  def parse_data(data)
+  end
 
   def load
     object_info = repository.load_object(sha1)
 
+    data, size = object_info[:data], object_info[:size]
+
     @content_sha1 = object_info[:content_sha1]
     @type         = object_info[:type]
-    @size         = object_info[:size]
-    @data         = object_info[:data] unless type == :blob && !load_blob_data?
+    @size         = size
+    @data         = data unless type == :blob && !load_blob_data?
+
+    parse_data data
 
     # Since the data will not always be available, its size must be checked here (and not later, in the :validate method).
-    raise InvalidSizeError, "Invalid size #{object_info[:size]} (expected #{object_info[:data].size})" unless object_info[:size] == object_info[:data].size
+    raise InvalidSizeError, "Invalid size #{size} (expected #{data.size})" unless size == data.size
   end
 end
 
 class Commit < GitObject
+  attr_reader :tree_sha1, :parents_sha1, :subject, :author, :committer
+
   def tree
-    Tree.find_or_initialize_by_sha1 repository, read_row('tree'), commit_level: commit_level, load_blob_data: load_blob_data?
+    Tree.find_or_initialize_by_sha1 repository, tree_sha1, commit_level: commit_level, load_blob_data: load_blob_data?
   end
 
   def parents
-    read_rows('parent').map do |sha1|
+    parents_sha1.map do |sha1|
       Commit.find_or_initialize_by_sha1(repository, sha1, commit_level: commit_level + 1, load_blob_data: load_blob_data?)
     end
-  end
-
-  def author
-    read_row('author') =~ /(.*) (\d+) [+-]\d{4}/ && [$1, Time.at($2.to_i)]
-  end
-
-  def committer
-    read_row('committer') =~ /(.*) (\d+) [+-]\d{4}/ && [$1, Time.at($2.to_i)]
-  end
-
-  def subject
-    rows = data.split("\n")
-    raise MissingCommitDataError, "Missing subject in commit." unless (empty_row_index = rows.index(''))
-    rows[empty_row_index+1..-1].join("\n")
   end
 
   def parent
@@ -397,50 +460,33 @@ class Commit < GitObject
     }
   end
 
-  private
+  protected
 
-  def read_row(label)
-    rows = read_rows(label)
+  def parse_data(data)
+    parsed_data = repository.parse_commit_data(data)
 
-    if rows.size == 0
-      raise MissingCommitDataError, "Missing #{label} in commit."
-    elsif rows.size > 1
-      raise ExcessiveCommitDataError, "Excessive #{label} rows in commit."
-    end
-
-    rows[0]
+    @tree_sha1    = parsed_data[:tree_sha1]
+    @parents_sha1 = parsed_data[:parents_sha1]
+    @author       = parsed_data[:author]
+    @committer    = parsed_data[:committer]
+    @subject      = parsed_data[:subject]
   end
 
-  def read_rows(label)
-    rows = data.split("\n")
-
-    # Returne all rows containing the searched label, making sure we do not read data after the 1st empty row
-    # (which usually contains a commit's subject).
-    rows[0...(rows.index('') || -1)].find_all { |row| row.split[0] == label }.map { |row| row[/\A\w+ (.*)/, 1] }
-  end
-
-  remember :tree, :parents, :author, :committer, :subject, :validate
+  remember :tree, :parents
 end
 
 class Tree < GitObject
+  attr_reader :entries_info
+
   def entries
-    bytes_processed = 0
-
-    items = data.scan(/(\d+) ([^\0]+)\0([\x00-\xFF]{20})/).inject({}) do |acc, (mode, name, sha1)|
-      bytes_processed += mode.size + name.size + 22   # 22 = ' '.size + "\0".size + sha1.size
-
+    entries_info.inject({}) do |items, (mode, name, sha1)|
       raise InvalidModeError, "Invalid mode #{mode} in file '#{name}'" unless VALID_MODES[mode]
 
       # Instantiate the object, based on its mode (Blob, Tree, ExecutableFile etc).
-      acc.merge name => Object.const_get(VALID_MODES[mode]).find_or_initialize_by_sha1(
+      items.merge name => Object.const_get(VALID_MODES[mode]).find_or_initialize_by_sha1(
         repository, sha1, commit_level: commit_level, load_blob_data: load_blob_data?
       )
     end
-
-    # Check if data contains any additional non-processed bytes.
-    raise InvalidTreeData, 'The tree contains invalid data' if bytes_processed != data.size
-
-    items
   end
 
   def validate_data
@@ -499,6 +545,14 @@ class Tree < GitObject
 
       changes
     end
+  end
+
+  protected
+
+  def parse_data(data)
+    parsed_data = repository.parse_tree_data(data)
+
+    @entries_info = parsed_data[:entries_info]
   end
 
   remember :entries, :changes_between, :validate

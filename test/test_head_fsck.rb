@@ -3,10 +3,6 @@ require 'contest'
 require 'turn/autorun'
 
 class TestFsck < Test::Unit::TestCase
-  setup do
-    @git_repositories_folder = File.join(File.dirname(File.expand_path(__FILE__)), 'git_repositories')
-  end
-
   context 'MemoryGitRepository' do
     context 'create_blob!, create_tree! and #create_commit!' do
       setup do
@@ -29,16 +25,22 @@ class TestFsck < Test::Unit::TestCase
 
         commit = repository.create_commit!('master', tree2, [], @author_and_committer, @author_and_committer, "1st commit")
 
-        assert_equal commit,  repository.head_commit.sha1
-        assert_equal [],      repository.head_commit.parents
-        assert_equal tree2,   repository.head_commit.tree.sha1
-        assert_equal tree1,   repository.head_commit.tree.entries['folder1'].sha1
+        head_commit = repository.head_commit(load_blob_data: true)
+
+        assert_equal commit,  head_commit.sha1
+        assert_equal [],      head_commit.parents
+        assert_equal tree2,   head_commit.tree.sha1
+        assert_equal tree1,   head_commit.tree.entries['folder1'].sha1
 
         assert_nothing_raised do
           repository.head_fsck
         end
       end
     end
+  end
+
+  setup do
+    @git_repositories_folder = File.join(File.dirname(File.expand_path(__FILE__)), 'git_repositories')
   end
 
   context 'FileSystemGitRepository' do
