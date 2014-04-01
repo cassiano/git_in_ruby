@@ -1,5 +1,0 @@
-adapter: mysql
-database: git
-username:
-password:
-host: localhost

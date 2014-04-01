@@ -1,0 +1,6 @@
+development:
+  adapter: mysql2
+  database: git
+  username:
+  password:
+  host: localhost
