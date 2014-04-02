@@ -405,7 +405,13 @@ class RdbmsGitRepository < GitRepository
       when DbTree then
         { type: :tree, size: object.size, data: object.entries }
       when DbCommit then
-        { type: :commit, size: object.size, data: [object.tree, object.parents, object.commit_author, object.commit_committer, object.commit_subject] }
+        {
+          type: :commit,
+          size: object.size,
+          data: [
+            object.tree.sha1, object.parents.map(&:sha1), object.commit_author, object.commit_committer, object.commit_subject
+          ]
+        }
       else
         raise "Unexpected object type (#{object.type}."
     end
@@ -444,7 +450,7 @@ class RdbmsGitRepository < GitRepository
 
     raise MissingObjectError, "Object not found!" unless object
 
-    parse_object(object).merge content_sha1: sha1_from_raw_content(raw_content)
+    parse_object(object).merge content_sha1: sha1_from_raw_content(object)
   end
 
   def create_git_object!(type, data)
@@ -466,7 +472,7 @@ class RdbmsGitRepository < GitRepository
 
   private
 
-  def sha1_from_raw_content(raw_content)
+  def sha1_from_raw_content(object)
     # Digest::SHA1.hexdigest raw_content.map(&:to_s).join("\n")
   end
 end
