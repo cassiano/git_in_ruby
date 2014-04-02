@@ -4,6 +4,8 @@ class CreateDbRefs < ActiveRecord::Migration
       t.column :name, :string, null: false
       t.column :ref, :string, null: false
     end
+
+    add_index :db_refs, :name, :unique => true
   end
 
   def self.down

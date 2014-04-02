@@ -369,9 +369,13 @@ end
 
 class DbCommit < DbObject
   belongs_to :tree, class_name: 'DbTree', foreign_key: :commit_tree_id
-  has_many :parents, class_name: 'DbCommit', table_name: :db_commit_parents
+  has_and_belongs_to_many :parents,
+                          class_name: 'DbCommit',
+                          join_table: :db_commit_parents,
+                          foreign_key: :commit_id,
+                          association_foreign_key: :parent_id
 
-  validates_presence_of :tree, :author, :committer, :subject
+  validates_presence_of :tree, :commit_author, :commit_committer, :commit_subject
 end
 
 class RdbmsGitRepository < GitRepository
@@ -386,18 +390,25 @@ class RdbmsGitRepository < GitRepository
 
     ActiveRecord::Base.establish_connection(dbconfig)
     ActiveRecord::Base.logger = Logger.new(File.open('RDBMS/log/database.log', 'a'))
-
-    # @branches = {}
-    # @head     = 'master'
-    # @objects  = {}
   end
 
   def head_commit_sha1
-    # branches[head]
+    head_ref = DbRef.find_by_name('HEAD')
+
+    DbBranch.find_by_name(head_ref.ref).sha1
   end
 
-  def parse_object(raw_content)
-    # { type: raw_content[0], size: raw_content[1], data: raw_content[2] }
+  def parse_object(object)
+    case object
+      when DbBlob then
+        { type: :blob, size: object.size, data: object.blob_data }
+      when DbTree then
+        { type: :tree, size: object.size, data: object.entries }
+      when DbCommit then
+        { type: :commit, size: object.size, data: [object.tree, object.parents, object.commit_author, object.commit_committer, object.commit_subject] }
+      else
+        raise "Unexpected object type (#{object.type}."
+    end
   end
 
   def format_commit_data(tree_sha1, parents_sha1, author, committer, subject)
@@ -405,13 +416,13 @@ class RdbmsGitRepository < GitRepository
   end
 
   def parse_commit_data(data)
-    # {
-    #   tree_sha1:    data[0],
-    #   parents_sha1: data[1],
-    #   author:       data[2],
-    #   committer:    data[3],
-    #   subject:      data[4]
-    # }
+    {
+      tree_sha1:    data[0],
+      parents_sha1: data[1],
+      author:       data[2],
+      committer:    data[3],
+      subject:      data[4]
+    }
   end
 
   def format_tree_data(entries)
@@ -428,6 +439,12 @@ class RdbmsGitRepository < GitRepository
     # raw_content = objects[sha1]
     #
     # parse_object(raw_content).merge content_sha1: sha1_from_raw_content(raw_content)
+
+    object = DbObject.find_by_sha1(sha1)
+
+    raise MissingObjectError, "Object not found!" unless object
+
+    parse_object(object).merge content_sha1: sha1_from_raw_content(raw_content)
   end
 
   def create_git_object!(type, data)
@@ -440,11 +457,11 @@ class RdbmsGitRepository < GitRepository
   end
 
   def update_branch!(name, commit_sha1)
-    # branches[name] = commit_sha1
+    DbBranch.where(name: name).update_all(sha1: commit_sha1)
   end
 
   def branch_names
-    # branches.keys
+    DbBranch.all.map(&:name)
   end
 
   private
