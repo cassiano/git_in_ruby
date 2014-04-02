@@ -245,8 +245,8 @@ class FileSystemGitRepository < GitRepository
   def read_commit_data_rows(data, label)
     rows = data.split("\n")
 
-    # Returne all rows containing the searched label, making sure we do not read data after the 1st empty row
-    # (which usually contains a commit's subject).
+    # Return all rows containing the searched label, making sure we do not read data after the 1st empty row
+    # (which usually contains the commit's subject).
     rows[0...(rows.index('') || -1)].find_all { |row| row.split[0] == label }.map { |row| row[/\A\w+ (.*)/, 1] }
   end
 
@@ -418,7 +418,7 @@ class RdbmsGitRepository < GitRepository
   end
 
   def format_commit_data(tree_sha1, parents_sha1, author, committer, subject)
-    # [tree_sha1, parents_sha1, author, committer, subject]
+    # [tre_sha1, parents_sha1, author, committer, subject]
   end
 
   def parse_commit_data(data)
