@@ -340,11 +340,52 @@ class MemoryGitRepository < GitRepository
   end
 end
 
+require 'active_record'
+require 'yaml'
+require 'logger'
+
+class DbBranch < ActiveRecord::Base
+  validates_presence_of :name, :sha1
+end
+
+class DbRef < ActiveRecord::Base
+  validates_presence_of :name, :ref
+end
+
+class DbObject < ActiveRecord::Base
+  validates_presence_of :sha1, :type, :size
+end
+
+class DbBlob < DbObject
+end
+
+class DbTree < DbObject
+  has_and_belongs_to_many :entries,
+                          class_name: 'DbObject',
+                          join_table: :db_tree_entries,
+                          foreign_key: :tree_id,
+                          association_foreign_key: :entry_id
+end
+
+class DbCommit < DbObject
+  belongs_to :tree, class_name: 'DbTree', foreign_key: :commit_tree_id
+  has_many :parents, class_name: 'DbCommit', table_name: :db_commit_parents
+
+  validates_presence_of :tree, :author, :committer, :subject
+end
+
 class RdbmsGitRepository < GitRepository
   # attr_reader :branches, :head, :objects
 
+  DATABASE_ENV = ENV['DATABASE_ENV'] || 'development'
+
   def initialize(options = {})
     super
+
+    dbconfig = YAML::load(File.open('RDBMS/config/database.yml'))[DATABASE_ENV]
+
+    ActiveRecord::Base.establish_connection(dbconfig)
+    ActiveRecord::Base.logger = Logger.new(File.open('RDBMS/log/database.log', 'a'))
 
     # @branches = {}
     # @head     = 'master'

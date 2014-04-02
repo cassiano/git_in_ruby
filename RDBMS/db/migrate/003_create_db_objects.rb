@@ -1,8 +1,10 @@
-class CreateObjects < ActiveRecord::Migration
+Foreigner.load
+
+class CreateDbObjects < ActiveRecord::Migration
   def self.up
-    create_table :objects do |t|
+    create_table :db_objects do |t|
       t.column :sha1, :string, limit: 40, null: false
-      t.column :type, :string, limit: 6, null: false      # One of: ['blob', 'tree', 'commit']
+      t.column :type, :string, limit: 16, null: false      # DbBlob, DbTree or DbCommit.
       t.column :size, :integer, null: false
 
       # BLOBs.
@@ -16,9 +18,11 @@ class CreateObjects < ActiveRecord::Migration
       t.column :commit_committer, :string
       t.column :commit_subject, :text
     end
+
+    add_foreign_key :db_objects, :db_objects, column: :commit_tree_id
   end
 
   def self.down
-    drop_table :objects
+    drop_table :db_objects
   end
 end
