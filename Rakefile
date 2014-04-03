@@ -47,6 +47,9 @@ namespace :db do
   task :configure_connection => :configuration do
     ActiveRecord::Base.establish_connection @config
     ActiveRecord::Base.logger = Logger.new STDOUT if @config['logger']
+
+    # Load foreigner gem.
+    Foreigner.load
   end
 
   desc 'Create the database from config/database.yml for the current DATABASE_ENV'

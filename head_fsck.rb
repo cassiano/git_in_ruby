@@ -106,12 +106,12 @@ class GitRepository
     raise NotImplementedError
   end
 
-  # Should generate a format suitable for the :parse_commit_data method.
+  # Should generate a format suitable for consumption by both the :parse_commit_data and create_git_object methods.
   def format_commit_data(tree_sha1, parents_sha1, author, committer, subject)
     raise NotImplementedError
   end
 
-  # Should generate a format suitable for the :parse_tree_data method.
+  # Should generate a format suitable for consumption by both the :parse_tree_data and create_git_object methods.
   def format_tree_data(entries)
     raise NotImplementedError
   end
@@ -259,7 +259,7 @@ class FileSystemGitRepository < GitRepository
   end
 
   def time_offset_for_commit(seconds)
-    sign = seconds < 0 ? '-' : '+'
+    sign   = seconds < 0 ? '-' : '+'
     hour   = seconds.abs / 3600
     minute = (seconds.abs - hour * 3600) / 60
 
@@ -353,22 +353,25 @@ class DbRef < ActiveRecord::Base
 end
 
 class DbObject < ActiveRecord::Base
-  validates_presence_of :sha1, :type, :size
+  validates_presence_of :sha1, :type
 end
 
 class DbBlob < DbObject
 end
 
 class DbTree < DbObject
-  has_and_belongs_to_many :entries,
-                          class_name: 'DbObject',
-                          join_table: :db_tree_entries,
-                          foreign_key: :tree_id,
-                          association_foreign_key: :entry_id
+  has_many :entries, class_name: 'DbTreeEntry', foreign_key: :tree_id
+end
+
+class DbTreeEntry < ActiveRecord::Base
+  validates_presence_of :mode, :name, :entry    # Do not include :tree in this list!
+
+  belongs_to :tree, class_name: 'DbTree'
+  belongs_to :entry, class_name: 'DbObject'      # DbTree or DbBlob.
 end
 
 class DbCommit < DbObject
-  belongs_to :tree, class_name: 'DbTree', foreign_key: :commit_tree_id
+  belongs_to              :tree, class_name: 'DbTree', foreign_key: :commit_tree_id
   has_and_belongs_to_many :parents,
                           class_name: 'DbCommit',
                           join_table: :db_commit_parents,
@@ -379,17 +382,15 @@ class DbCommit < DbObject
 end
 
 class RdbmsGitRepository < GitRepository
-  # attr_reader :branches, :head, :objects
-
   DATABASE_ENV = ENV['DATABASE_ENV'] || 'development'
 
   def initialize(options = {})
     super
 
-    dbconfig = YAML::load(File.open('RDBMS/config/database.yml'))[DATABASE_ENV]
+    dbconfig = YAML::load(File.open('config/database.yml'))[DATABASE_ENV]
 
     ActiveRecord::Base.establish_connection(dbconfig)
-    ActiveRecord::Base.logger = Logger.new(File.open('RDBMS/log/database.log', 'a'))
+    ActiveRecord::Base.logger = Logger.new(STDOUT)
   end
 
   def head_commit_sha1
@@ -401,24 +402,24 @@ class RdbmsGitRepository < GitRepository
   def parse_object(object)
     case object
       when DbBlob then
-        { type: :blob, size: object.size, data: object.blob_data }
+        data = object.blob_data
+
+        { type: :blob, size: data.size, data: data }
       when DbTree then
-        { type: :tree, size: object.size, data: object.entries }
+        data = object.entries.map { |entry| [entry.mode, entry.name, entry.entry.sha1] }
+
+        { type: :tree, size: data.size, data: data }
       when DbCommit then
-        {
-          type: :commit,
-          size: object.size,
-          data: [
-            object.tree.sha1, object.parents.map(&:sha1), object.commit_author, object.commit_committer, object.commit_subject
-          ]
-        }
+        data = [object.tree.sha1, object.parents.map(&:sha1), object.commit_author, object.commit_committer, object.commit_subject]
+
+        { type: :commit, size: data.size, data: data }
       else
         raise "Unexpected object type (#{object.type}."
     end
   end
 
   def format_commit_data(tree_sha1, parents_sha1, author, committer, subject)
-    # [tre_sha1, parents_sha1, author, committer, subject]
+    [tree_sha1, parents_sha1, author, committer, subject]
   end
 
   def parse_commit_data(data)
@@ -432,34 +433,45 @@ class RdbmsGitRepository < GitRepository
   end
 
   def format_tree_data(entries)
-    # entries.map { |entry| [GitObject.mode_for_type(entry[0]), entry[1], entry[2]] }
+    entries.map { |entry| [GitObject.mode_for_type(entry[0]), entry[1], entry[2]] }
   end
 
   def parse_tree_data(data)
-    # { entries_info: data }
+    { entries_info: data }
   end
 
   def load_object(sha1)
-    # raise MissingObjectError, "Object not found!" unless objects[sha1]
-    #
-    # raw_content = objects[sha1]
-    #
-    # parse_object(raw_content).merge content_sha1: sha1_from_raw_content(raw_content)
+    raise MissingObjectError, "Object not found!" unless (raw_content = DbObject.find_by_sha1(sha1))
 
-    object = DbObject.find_by_sha1(sha1)
-
-    raise MissingObjectError, "Object not found!" unless object
-
-    parse_object(object).merge content_sha1: sha1_from_raw_content(object)
+    parse_object(raw_content).merge content_sha1: sha1_from_raw_content(raw_content)
   end
 
   def create_git_object!(type, data)
-    # raw_content = [type, data.size, data]
-    # sha1        = sha1_from_raw_content(raw_content)
-    #
-    # objects[sha1] ||= raw_content
-    #
-    # sha1
+    raw_content = [type, data]
+    sha1        = sha1_from_raw_content(raw_content)
+
+    case type
+      when :blob then
+        DbBlob.create_with(
+          blob_data:  data
+        ).find_or_create_by(sha1: sha1)
+      when :tree then
+        DbTree.create_with(
+          entries: data.map do |entry|
+            DbTreeEntry.new mode: entry[0], name: entry[1], entry: db_object_for(entry[2])
+          end
+        ).find_or_create_by(sha1: sha1)
+      when :commit then
+        DbCommit.create_with(
+          tree:             db_object_for(data[0]),
+          parents:          data[1].map { |db_commit_or_sha1| db_object_for(db_commit_or_sha1) },
+          commit_author:    data[2],
+          commit_committer: data[3],
+          commit_subject:   data[4]
+        ).find_or_create_by(sha1: sha1)
+    end
+
+    sha1
   end
 
   def update_branch!(name, commit_sha1)
@@ -472,8 +484,12 @@ class RdbmsGitRepository < GitRepository
 
   private
 
-  def sha1_from_raw_content(object)
-    # Digest::SHA1.hexdigest raw_content.map(&:to_s).join("\n")
+  def sha1_from_raw_content(raw_content)
+    Digest::SHA1.hexdigest raw_content.inspect
+  end
+
+  def db_object_for(db_object_or_sha1)
+    DbObject === db_object_or_sha1 ? db_object_or_sha1 : DbObject.find_by_sha1(db_object_or_sha1)
   end
 end
 
