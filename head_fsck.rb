@@ -392,12 +392,14 @@ class DbCommit < DbObject
 end
 
 class RdbmsGitRepository < GitRepository
-  DATABASE_ENV = ENV['DATABASE_ENV'] || 'development'
+  attr_reader :environment
 
   def initialize(options = {})
     super
 
-    dbconfig = YAML::load(File.open('config/database.yml'))[DATABASE_ENV]
+    @environment = options[:environment] || 'development'
+
+    dbconfig = YAML::load(File.open('config/database.yml'))[environment]
 
     ActiveRecord::Base.establish_connection(dbconfig)
     ActiveRecord::Base.logger = Logger.new(STDOUT)

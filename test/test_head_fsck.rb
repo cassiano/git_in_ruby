@@ -46,7 +46,7 @@ class TestFsck < Test::Unit::TestCase
       end
 
       test 'creates a valid commit object with no parent' do
-        repository = RdbmsGitRepository.new
+        repository = RdbmsGitRepository.new environment: 'test'
 
         blob1 = repository.create_blob!('blob1 content')
         blob2 = repository.create_blob!('blob2 content')
