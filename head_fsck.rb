@@ -415,8 +415,8 @@ class RdbmsGitRepository < GitRepository
     { type: type, size: object.size, data: object }
   end
 
-  def format_commit_data(tree_sha1, parents_sha1, author, committer, subject)
-    [tree_sha1, parents_sha1, author, committer, subject]
+  def format_commit_data(tree, parents, author, committer, subject)
+    [sha1_for(tree), parents.map { |parent| sha1_for(parent) }, author, committer, subject]
   end
 
   def parse_commit_data(data)
@@ -430,7 +430,7 @@ class RdbmsGitRepository < GitRepository
   end
 
   def format_tree_data(entries)
-    entries.map { |entry| [GitObject.mode_for_type(entry[0]), entry[1], entry[2]] }
+    entries.map { |entry| [GitObject.mode_for_type(entry[0]), entry[1], sha1_for(entry[2])] }
   end
 
   def parse_tree_data(data)
@@ -487,6 +487,10 @@ class RdbmsGitRepository < GitRepository
 
   def db_object_for(db_object_or_sha1)
     DbObject === db_object_or_sha1 ? db_object_or_sha1 : DbObject.find_by_sha1(db_object_or_sha1)
+  end
+
+  def sha1_for(db_object_or_sha1)
+    DbObject === db_object_or_sha1 ? db_object_or_sha1.sha1 : db_object_or_sha1
   end
 end
 
@@ -751,16 +755,5 @@ def run!(project_path, bare_repository)
   repository = FileSystemGitRepository.new(project_path: project_path, bare_repository: bare_repository)
   repository.head_fsck
 end
-
-# $enable_tracing = false
-# $trace_out = open('/tmp/trace.txt', 'w')
-#
-# set_trace_func proc { |event, file, line, id, binding, classname|
-#   if $enable_tracing && event == 'call'
-#     $trace_out.puts "#{file}:#{line} #{classname}##{id}"
-#   end
-# }
-#
-# $enable_tracing = true
 
 run! ARGV[0] || '.', ARGV[1] && ARGV[1].downcase == 'bare' if __FILE__ == $0
