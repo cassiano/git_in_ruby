@@ -4,13 +4,49 @@ require 'turn/autorun'
 
 class TestFsck < Test::Unit::TestCase
   context 'MemoryGitRepository' do
-    context 'create_blob!, create_tree! and #create_commit!' do
+    context '#create_blob!, #create_tree! and #create_commit!' do
       setup do
         @author_and_committer = "Cassiano D'Andrea <cassiano.dandrea@tagview.com.br>"
       end
 
       test 'creates a valid commit object with no parent' do
         repository = MemoryGitRepository.new
+
+        blob1 = repository.create_blob!('blob1 content')
+        blob2 = repository.create_blob!('blob2 content')
+
+        tree1 = repository.create_tree!([
+          [:blob, 'file1', blob1]
+        ])
+        tree2 = repository.create_tree!([
+          [:blob, 'file2',    blob2],
+          [:tree, 'folder1',  tree1]
+        ])
+
+        commit = repository.create_commit!('master', tree2, [], @author_and_committer, @author_and_committer, "1st commit")
+
+        head_commit = repository.head_commit(load_blob_data: true)
+
+        assert_equal commit,  head_commit.sha1
+        assert_equal [],      head_commit.parents
+        assert_equal tree2,   head_commit.tree.sha1
+        assert_equal tree1,   head_commit.tree.entries['folder1'].sha1
+
+        assert_nothing_raised do
+          repository.head_fsck
+        end
+      end
+    end
+  end
+
+  context 'RdbmsGitRepository' do
+    context '#create_blob!, #create_tree! and #create_commit!' do
+      setup do
+        @author_and_committer = "Cassiano D'Andrea <cassiano.dandrea@tagview.com.br>"
+      end
+
+      test 'creates a valid commit object with no parent' do
+        repository = RdbmsGitRepository.new
 
         blob1 = repository.create_blob!('blob1 content')
         blob2 = repository.create_blob!('blob2 content')

@@ -10,7 +10,6 @@
 require 'digest/sha1'
 require 'zlib'
 require 'fileutils'
-# require 'debug'
 
 require File.join(File.dirname(File.expand_path(__FILE__)), 'memoize')
 require File.join(File.dirname(File.expand_path(__FILE__)), 'sha1_util')
@@ -195,7 +194,7 @@ class FileSystemGitRepository < GitRepository
 
     raise MissingObjectError, "File '#{path}' not found! Have you unpacked all pack files?" unless File.exists?(path)
 
-    raw_content = Zlib::Inflate.inflate File.read(path)
+    raw_content = Zlib::Inflate.inflate(File.read(path))
 
     parse_object(raw_content).merge content_sha1: Digest::SHA1.hexdigest(raw_content)
   end
@@ -357,17 +356,24 @@ class DbObject < ActiveRecord::Base
 end
 
 class DbBlob < DbObject
+  def to_raw
+    [:blob, blob_data]
+  end
 end
 
 class DbTree < DbObject
   has_many :entries, class_name: 'DbTreeEntry', foreign_key: :tree_id
+
+  def to_raw
+    [:tree, entries.map { |entry| [entry.mode, entry.name, entry.git_object.sha1] }]
+  end
 end
 
 class DbTreeEntry < ActiveRecord::Base
-  validates_presence_of :mode, :name, :entry    # Do not include :tree in this list!
+  validates_presence_of :mode, :name, :git_object    # Do not include :tree in this list!
 
   belongs_to :tree, class_name: 'DbTree'
-  belongs_to :entry, class_name: 'DbObject'      # DbTree or DbBlob.
+  belongs_to :git_object, class_name: 'DbObject'      # DbTree or DbBlob.
 end
 
 class DbCommit < DbObject
@@ -379,6 +385,10 @@ class DbCommit < DbObject
                           association_foreign_key: :parent_id
 
   validates_presence_of :tree, :commit_author, :commit_committer, :commit_subject
+
+  def to_raw
+    [:commit, [tree.sha1, parents.map(&:sha1), commit_author, commit_committer, commit_subject]]
+  end
 end
 
 class RdbmsGitRepository < GitRepository
@@ -399,23 +409,10 @@ class RdbmsGitRepository < GitRepository
     DbBranch.find_by_name(head_ref.ref).sha1
   end
 
-  def parse_object(object)
-    case object
-      when DbBlob then
-        data = object.blob_data
+  def parse_object(raw_content)
+    type, object = raw_content
 
-        { type: :blob, size: data.size, data: data }
-      when DbTree then
-        data = object.entries.map { |entry| [entry.mode, entry.name, entry.entry.sha1] }
-
-        { type: :tree, size: data.size, data: data }
-      when DbCommit then
-        data = [object.tree.sha1, object.parents.map(&:sha1), object.commit_author, object.commit_committer, object.commit_subject]
-
-        { type: :commit, size: data.size, data: data }
-      else
-        raise "Unexpected object type (#{object.type}."
-    end
+    { type: type, size: object.size, data: object }
   end
 
   def format_commit_data(tree_sha1, parents_sha1, author, committer, subject)
@@ -441,7 +438,7 @@ class RdbmsGitRepository < GitRepository
   end
 
   def load_object(sha1)
-    raise MissingObjectError, "Object not found!" unless (raw_content = DbObject.find_by_sha1(sha1))
+    raise MissingObjectError, "Object not found!" unless (raw_content = DbObject.find_by_sha1(sha1).to_raw)
 
     parse_object(raw_content).merge content_sha1: sha1_from_raw_content(raw_content)
   end
@@ -453,18 +450,18 @@ class RdbmsGitRepository < GitRepository
     case type
       when :blob then
         DbBlob.create_with(
-          blob_data:  data
+          blob_data: data
         ).find_or_create_by(sha1: sha1)
       when :tree then
         DbTree.create_with(
           entries: data.map do |entry|
-            DbTreeEntry.new mode: entry[0], name: entry[1], entry: db_object_for(entry[2])
+            DbTreeEntry.new mode: entry[0], name: entry[1], git_object: db_object_for(entry[2])
           end
         ).find_or_create_by(sha1: sha1)
       when :commit then
         DbCommit.create_with(
           tree:             db_object_for(data[0]),
-          parents:          data[1].map { |db_commit_or_sha1| db_object_for(db_commit_or_sha1) },
+          parents:          data[1].map { |parent| db_object_for(parent) },
           commit_author:    data[2],
           commit_committer: data[3],
           commit_subject:   data[4]
@@ -571,6 +568,8 @@ class GitObject
     # Since the data will not always be available, its size must be checked here (and not later, in the :validate method).
     raise InvalidSizeError, "Invalid size #{size} (expected #{data.size})" unless size == data.size
   end
+
+  remember :validate
 end
 
 class Commit < GitObject
@@ -640,7 +639,7 @@ class Commit < GitObject
     @subject      = parsed_data[:subject]
   end
 
-  remember :tree, :parents, :validate
+  remember :tree, :parents
 end
 
 class Tree < GitObject
@@ -723,14 +722,12 @@ class Tree < GitObject
     @entries_info = parsed_data[:entries_info]
   end
 
-  remember :entries, :changes_between, :validate
+  remember :entries, :changes_between
 end
 
 class Blob < GitObject
   def validate_data
   end
-
-  remember :validate
 end
 
 class ExecutableFile < Blob

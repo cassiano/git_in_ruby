@@ -78,4 +78,13 @@ namespace :db do
   task :version => :configure_connection do
     puts "Current version: #{ActiveRecord::Migrator.current_version}"
   end
+
+  namespace :migrate do
+    desc "Resets database migrations (drops and recreates the database then runs all migrations)."
+    task :reset => :configure_connection do
+      ['db:drop', 'db:create', 'db:migrate'].each do |name|
+        Rake::Task[name].invoke
+      end
+    end
+  end
 end
