@@ -78,5 +78,5 @@ class Tree < GitObject
     @entries_info = parsed_data[:entries_info]
   end
 
-  remember :entries, :changes_between, :validate
+  remember :entries, :changes_between
 end

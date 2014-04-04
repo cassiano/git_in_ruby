@@ -65,5 +65,5 @@ class Commit < GitObject
     @subject      = parsed_data[:subject]
   end
 
-  remember :tree, :parents, :validate
+  remember :tree, :parents
 end
