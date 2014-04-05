@@ -76,4 +76,6 @@ class GitObject
     # Since the data will not always be available, its size must be checked here (and not later, in the :validate method).
     raise InvalidSizeError, "Invalid size #{size} (expected #{data.size})" unless size == data.size
   end
+
+  remember :validate
 end
