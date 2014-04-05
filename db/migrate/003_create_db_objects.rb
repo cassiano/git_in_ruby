@@ -5,7 +5,7 @@ class CreateDbObjects < ActiveRecord::Migration
       t.column :type, :string, limit: 16, null: false      # DbBlob, DbTree or DbCommit.
 
       # BLOBs.
-      t.column :blob_data, :text
+      t.column :blob_data, :longblob
 
       # Trees (no more columns needed for trees).
 
