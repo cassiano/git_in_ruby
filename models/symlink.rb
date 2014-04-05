@@ -1,0 +1,2 @@
+class SymLink < Blob
+end
