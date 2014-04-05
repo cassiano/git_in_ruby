@@ -356,8 +356,10 @@ class DbObject < ActiveRecord::Base
 end
 
 class DbBlob < DbObject
+  alias_attribute :data, :blob_data
+
   def to_raw
-    [:blob, blob_data]
+    [:blob, data]
   end
 end
 
@@ -377,6 +379,10 @@ class DbTreeEntry < ActiveRecord::Base
 end
 
 class DbCommit < DbObject
+  alias_attribute :author,    :commit_author
+  alias_attribute :committer, :commit_committer
+  alias_attribute :subject,   :commit_subject
+
   belongs_to              :tree, class_name: 'DbTree', foreign_key: :commit_tree_id
   has_and_belongs_to_many :parents,
                           class_name: 'DbCommit',
@@ -384,10 +390,10 @@ class DbCommit < DbObject
                           foreign_key: :commit_id,
                           association_foreign_key: :parent_id
 
-  validates_presence_of :tree, :commit_author, :commit_committer, :commit_subject
+  validates_presence_of :tree, :author, :committer, :subject
 
   def to_raw
-    [:commit, [tree.sha1, parents.map(&:sha1), commit_author, commit_committer, commit_subject]]
+    [:commit, [tree.sha1, parents.map(&:sha1), author, committer, subject]]
   end
 end
 
@@ -452,7 +458,7 @@ class RdbmsGitRepository < GitRepository
     case type
       when :blob then
         DbBlob.create_with(
-          blob_data: data
+          data: data
         ).find_or_create_by(sha1: sha1)
       when :tree then
         DbTree.create_with(
@@ -462,11 +468,11 @@ class RdbmsGitRepository < GitRepository
         ).find_or_create_by(sha1: sha1)
       when :commit then
         DbCommit.create_with(
-          tree:             db_object_for(data[0]),
-          parents:          data[1].map { |parent| db_object_for(parent) },
-          commit_author:    data[2],
-          commit_committer: data[3],
-          commit_subject:   data[4]
+          tree:       db_object_for(data[0]),
+          parents:    data[1].map { |parent| db_object_for(parent) },
+          author:     data[2],
+          committer:  data[3],
+          subject:    data[4]
         ).find_or_create_by(sha1: sha1)
     end
 
