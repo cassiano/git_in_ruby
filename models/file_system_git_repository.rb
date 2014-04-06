@@ -1,5 +1,8 @@
 # encoding: US-ASCII
 
+require 'zlib'
+require 'fileutils'
+
 class FileSystemGitRepository < GitRepository
   attr_reader :project_path
 

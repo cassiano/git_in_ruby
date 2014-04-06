@@ -13,21 +13,18 @@ class ExcessiveCommitDataError  < StandardError; end
 class MissingCommitDataError    < StandardError; end
 class InvalidTreeData           < StandardError; end
 
-# Require standard libraries.
+# Required libraries.
 require 'digest/sha1'
-require 'zlib'
-require 'fileutils'
 require 'active_record'
 
-# Require external libraries.
-Dir[File.join(File.dirname(File.expand_path(__FILE__)), "lib", "*.rb")].each { |file| require file }
+# Required external libraries.
+Dir[File.join(File.dirname(File.expand_path(__FILE__)), 'lib', '*.rb')].each { |file| require file }
 
-# Require models.
-require File.join(File.dirname(File.expand_path(__FILE__)), 'models', 'git_repository')
-require File.join(File.dirname(File.expand_path(__FILE__)), 'models', 'git_object')
-require File.join(File.dirname(File.expand_path(__FILE__)), 'models', 'blob')
-require File.join(File.dirname(File.expand_path(__FILE__)), 'models', 'db_object')
-Dir[File.join(File.dirname(File.expand_path(__FILE__)), "models", "*.rb")].each { |file| require file }
+# Required models.
+Dir[File.join(File.dirname(File.expand_path(__FILE__)), 'models', '*.rb')].each do |file|
+  class_name = file[%r(.*/(.*)\.rb), 1]
+  autoload class_name.camel_case, file
+end
 
 def run!(project_path, bare_repository)
   repository = FileSystemGitRepository.new(project_path: project_path, bare_repository: bare_repository)
