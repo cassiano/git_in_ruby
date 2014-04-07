@@ -16,9 +16,7 @@ class RdbmsGitRepository < GitRepository
   end
 
   def head_commit_sha1
-    head_ref = DbRef.find_by_name('HEAD')
-
-    DbBranch.find_by_name(head_ref.ref).sha1
+    DbRef.sha1_referenced_by 'HEAD'
   end
 
   def parse_object(raw_content)

@@ -5,10 +5,10 @@ class DbCommit < DbObject
 
   belongs_to              :tree, class_name: 'DbTree', foreign_key: :commit_tree_id
   has_and_belongs_to_many :parents,
-                          class_name: 'DbCommit',
-                          join_table: :db_commit_parents,
-                          foreign_key: :commit_id,
-                          association_foreign_key: :parent_id
+                          class_name:               'DbCommit',
+                          join_table:               :db_commit_parents,
+                          foreign_key:              :commit_id,
+                          association_foreign_key:  :parent_id
 
   validates_presence_of :tree, :author, :committer, :subject
 
