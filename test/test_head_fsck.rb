@@ -13,14 +13,14 @@ class TestFsck < Test::Unit::TestCase
         repository = MemoryGitRepository.new
 
         blob1 = repository.create_blob!('blob1 content')
-        blob2 = repository.create_blob!('blob2 content')
+        blob2 = repository.create_blob!(File.read(File.join(File.dirname(File.expand_path(__FILE__)), 'git_repositories.zip')))
 
         tree1 = repository.create_tree!([
           [:blob, 'file1', blob1]
         ])
         tree2 = repository.create_tree!([
-          [:blob, 'file2',    blob2],
-          [:tree, 'folder1',  tree1]
+          [:blob, 'git_repositories.zip', blob2],
+          [:tree, 'folder1',              tree1]
         ])
 
         commit = repository.create_commit!('master', tree2, [], @author_and_committer, @author_and_committer, "1st commit")
@@ -49,14 +49,14 @@ class TestFsck < Test::Unit::TestCase
         repository = RdbmsGitRepository.new environment: 'test'
 
         blob1 = repository.create_blob!('blob1 content')
-        blob2 = repository.create_blob!('blob2 content')
+        blob2 = repository.create_blob!(File.read(File.join(File.dirname(File.expand_path(__FILE__)), 'git_repositories.zip')))
 
         tree1 = repository.create_tree!([
           [:blob, 'file1', blob1]
         ])
         tree2 = repository.create_tree!([
-          [:blob, 'file2',    blob2],
-          [:tree, 'folder1',  tree1]
+          [:blob, 'git_repositories.zip', blob2],
+          [:tree, 'folder1',              tree1]
         ])
 
         commit = repository.create_commit!('master', tree2, [], @author_and_committer, @author_and_committer, "1st commit")
