@@ -2,16 +2,15 @@ require 'yaml'
 require 'logger'
 
 class RdbmsGitRepository < GitRepository
-  attr_reader :environment
+  attr_reader :environment, :dbconfig
 
   def initialize(options = {})
     super
 
     @environment = options[:environment] || 'development'
+    @dbconfig    = YAML::load(File.open('config/database.yml'))[environment]
 
-    dbconfig = YAML::load(File.open('config/database.yml'))[environment]
-
-    ActiveRecord::Base.establish_connection(dbconfig)
+    ActiveRecord::Base.establish_connection(@dbconfig)
     ActiveRecord::Base.logger = Logger.new(STDOUT)
   end
 
