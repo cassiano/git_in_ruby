@@ -23,8 +23,8 @@ class Tree < GitObject
       puts "Checking out #{filename_or_path}"
 
       case entry
-        when ExecutableFile, GroupWriteableFile, Blob then
-          filemode = { ExecutableFile => 0755, GroupWriteableFile => 0664, Blob => 0644 }[entry.class]
+        when ExecutableFile, GroupWritableFile, Blob then
+          filemode = { ExecutableFile => 0755, GroupWritableFile => 0664, Blob => 0644 }[entry.class]
 
           File.write filename_or_path, entry.data
           File.chmod filemode, filename_or_path
@@ -43,7 +43,7 @@ class Tree < GitObject
     entries.inject([]) do |changes, (name, entry)|
       filename_or_path = base_path ? File.join(base_path, name) : name
 
-      if [Tree, Blob, ExecutableFile, GroupWriteableFile].include?(entry.class)
+      if [Tree, Blob, ExecutableFile, GroupWritableFile].include?(entry.class)
         other_entries = other_trees.map { |tree| tree.entries[name] }.compact
 
         # For merge rules, check: http://thomasrast.ch/git/evil_merge.html

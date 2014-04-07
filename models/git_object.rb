@@ -8,7 +8,7 @@ class GitObject
     '40000'  => 'Tree',
     '100644' => 'Blob',
     '100755' => 'ExecutableFile',
-    '100664' => 'GroupWriteableFile',
+    '100664' => 'GroupWritableFile',
     '120000' => 'SymLink',
     '160000' => 'GitSubModule'
   }

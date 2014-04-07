@@ -1,2 +1,2 @@
-class GroupWriteableFile < Blob
+class GroupWritableFile < Blob
 end
