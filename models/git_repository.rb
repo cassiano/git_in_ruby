@@ -21,7 +21,7 @@ class GitRepository
   end
 
   def head_fsck
-    head_commit.validate
+    head_commit(load_blob_data: true).validate
   end
 
   def head_commit_sha1
