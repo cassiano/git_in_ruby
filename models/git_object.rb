@@ -66,12 +66,14 @@ class GitObject
     @size         = object_info[:size]
     @content_sha1 = object_info[:content_sha1]
     @type         = object_info[:type]
-    @data         = object_info[:data] unless @type == :blob && !load_blob_data?
+    @data         = object_info[:data]
 
     parse_data(@data) if @data
 
     # Since the data will not always be available, its size must be checked here (and not later, in the :validate method).
-    raise InvalidSizeError, "Invalid size #{size} (expected #{data.size})" unless @size == @data.size
+    raise InvalidSizeError, "Invalid size #{@size} (expected #{@data.size})" unless @size == @data.size
+
+    @data = nil if @type == :blob && !load_blob_data?
   end
 
   remember :validate

@@ -13,7 +13,7 @@ class TestFsck < Test::Unit::TestCase
         repository = MemoryGitRepository.new
 
         blob1 = repository.create_blob!('blob1 content')
-        blob2 = repository.create_blob!(File.read(File.join(File.dirname(File.expand_path(__FILE__)), 'git_repositories.zip')))
+        blob2 = repository.create_blob!(File.read(File.join(File.dirname(File.expand_path(__FILE__)), 'git_repositories.zip'), encoding: 'ASCII-8BIT'))
 
         tree1 = repository.create_tree!([
           [:blob, 'file1', blob1]
@@ -49,7 +49,7 @@ class TestFsck < Test::Unit::TestCase
         repository = RdbmsGitRepository.new environment: 'test'
 
         blob1 = repository.create_blob!('blob1 content')
-        blob2 = repository.create_blob!(File.read(File.join(File.dirname(File.expand_path(__FILE__)), 'git_repositories.zip')))
+        blob2 = repository.create_blob!(File.read(File.join(File.dirname(File.expand_path(__FILE__)), 'git_repositories.zip'), encoding: 'ASCII-8BIT'))
 
         tree1 = repository.create_tree!([
           [:blob, 'file1', blob1]
