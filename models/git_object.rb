@@ -63,18 +63,15 @@ class GitObject
   def load
     object_info = repository.load_object(sha1)
 
-    data = object_info[:data]
-    size = object_info[:size]
-
+    @size         = object_info[:size]
     @content_sha1 = object_info[:content_sha1]
     @type         = object_info[:type]
-    @size         = size
-    @data         = data unless type == :blob && !load_blob_data?
+    @data         = object_info[:data] unless @type == :blob && !load_blob_data?
 
-    parse_data(data) if data
+    parse_data(@data) if @data
 
     # Since the data will not always be available, its size must be checked here (and not later, in the :validate method).
-    raise InvalidSizeError, "Invalid size #{size} (expected #{data.size})" unless size == data.size
+    raise InvalidSizeError, "Invalid size #{size} (expected #{data.size})" unless @size == @data.size
   end
 
   remember :validate

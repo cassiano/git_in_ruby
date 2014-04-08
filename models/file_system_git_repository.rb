@@ -79,7 +79,7 @@ class FileSystemGitRepository < GitRepository
 
     raise MissingObjectError, "File '#{path}' not found! Have you unpacked all pack files?" unless File.exists?(path)
 
-    raw_content = Zlib::Inflate.inflate File.read(path)
+    raw_content = Zlib::Inflate.inflate(File.read(path))
 
     parse_object(raw_content).merge content_sha1: Digest::SHA1.hexdigest(raw_content)
   end

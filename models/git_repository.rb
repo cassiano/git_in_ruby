@@ -28,6 +28,7 @@ class GitRepository
     raise NotImplementedError
   end
 
+  # Must return a hash with the following keys: type, size, data and content_sha1.
   def load_object(sha1)
     raise NotImplementedError
   end
@@ -78,10 +79,12 @@ class GitRepository
     raise NotImplementedError
   end
 
+  # Generates (commit) data for the :create_git_object! method.
   def format_commit_data(tree_sha1, parents_sha1, author, committer, subject)
     raise NotImplementedError
   end
 
+  # Generates (tree) data for the :create_git_object! method.
   def format_tree_data(entries)
     raise NotImplementedError
   end

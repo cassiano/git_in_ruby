@@ -3,7 +3,5 @@ class DbBlob < DbObject
 
   def to_raw
     [:blob, data]
-
-    # "blob #{data.size}\0#{data}"
   end
 end
