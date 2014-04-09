@@ -101,4 +101,6 @@ class RdbmsGitRepository < GitRepository
   def sha1_for(db_object_or_sha1)
     DbObject === db_object_or_sha1 ? db_object_or_sha1.sha1 : db_object_or_sha1
   end
+
+  remember :db_object_for
 end
