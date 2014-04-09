@@ -61,6 +61,10 @@ class Commit < GitObject
     1 + parents.map(&:commit_count).inject(0, :+)
   end
 
+  def max_parents_count(max_count = -1)
+    ([max_count, parents.size] + parents.map(&:max_parents_count)).max
+  end
+
   protected
 
   def parse_data(data)

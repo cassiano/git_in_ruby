@@ -77,6 +77,7 @@ class GitRepository
   end
 
   def_delegator :head_commit, :commit_count
+  def_delegator :head_commit, :max_parents_count
 
   protected
 
