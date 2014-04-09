@@ -89,5 +89,5 @@ class Tree < GitObject
     @entries_info = parsed_data[:entries_info]
   end
 
-  remember :entries, :changes_between
+  remember :entries, :changes_between, :clone_into
 end

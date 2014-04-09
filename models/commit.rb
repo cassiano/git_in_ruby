@@ -84,5 +84,5 @@ class Commit < GitObject
     @subject      = parsed_data[:subject]
   end
 
-  remember :tree, :parents, :max_parents_count, :clone
+  remember :tree, :parents, :max_parents_count, :clone_into
 end
