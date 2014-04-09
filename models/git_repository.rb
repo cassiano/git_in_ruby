@@ -1,5 +1,8 @@
+require 'forwardable'
+
 class GitRepository
   extend Memoize
+  extend Forwardable
 
   attr_reader :instances
 
@@ -73,9 +76,7 @@ class GitRepository
     raise NotImplementedError
   end
 
-  def commit_count
-    head_commit.commit_count
-  end
+  def_delegator :head_commit, :commit_count
 
   protected
 
