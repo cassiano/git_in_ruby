@@ -61,8 +61,15 @@ class Commit < GitObject
     1 + parents.map(&:commit_count).inject(0, :+)
   end
 
-  def max_parents_count(max_count = -1)
-    ([max_count, parents.size] + parents.map(&:max_parents_count)).max
+  def max_parents_count
+    [parents.size].concat(parents.map(&:max_parents_count)).max
+  end
+
+  def clone(target_repository, branch = 'master')
+    parents_clones_sha1s = parents.map { |p| p.clone(target_repository, branch) }
+    tree_sha1            = tree.clone(target_repository)
+
+    target_repository.create_commit!(branch, tree_sha1, parents_clones_sha1s, author, committer, subject)
   end
 
   protected
@@ -77,5 +84,5 @@ class Commit < GitObject
     @subject      = parsed_data[:subject]
   end
 
-  remember :tree, :parents
+  remember :tree, :parents, :max_parents_count, :clone
 end

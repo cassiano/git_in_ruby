@@ -79,6 +79,10 @@ class GitRepository
   def_delegator :head_commit, :commit_count
   def_delegator :head_commit, :max_parents_count
 
+  def clone(target_repository, branch = 'master')
+    head_commit.clone target_repository, branch
+  end
+
   protected
 
   def create_git_object!(type, data)
