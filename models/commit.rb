@@ -65,11 +65,11 @@ class Commit < GitObject
     [parents.size].concat(parents.map(&:max_parents_count)).max
   end
 
-  def clone(target_repository, branch = 'master')
-    parents_clones_sha1s = parents.map { |p| p.clone(target_repository, branch) }
-    tree_sha1            = tree.clone(target_repository)
+  def clone_into(target_repository, branch = 'master')
+    parents_clones_sha1s = parents.map { |parent| parent.clone_into(target_repository, branch) }
+    tree_clone_sha1      = tree.clone_into(target_repository)
 
-    target_repository.create_commit!(branch, tree_sha1, parents_clones_sha1s, author, committer, subject)
+    target_repository.create_commit!(branch, tree_clone_sha1, parents_clones_sha1s, author, committer, subject)
   end
 
   protected

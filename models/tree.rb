@@ -70,11 +70,11 @@ class Tree < GitObject
     end
   end
 
-  def clone(target_repository)
+  def clone_into(target_repository)
     entries_clones = entries.map do |name, git_object|
       case git_object
-        when Blob then [git_object.class.name.underscore, name, target_repository.create_blob!(git_object.data)]
-        when Tree then [:tree,                            name, git_object.clone(target_repository)]
+        when Blob then [git_object.class.name.underscore.to_sym,  name, target_repository.create_blob!(git_object.data)]
+        when Tree then [:tree,                                    name, git_object.clone_into(target_repository)]
       end
     end
 
