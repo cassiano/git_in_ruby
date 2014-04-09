@@ -53,6 +53,14 @@ class Commit < GitObject
     }
   end
 
+  def commit_count
+    return 0 if @counted
+
+    @counted = true
+
+    1 + parents.map(&:commit_count).inject(0, :+)
+  end
+
   protected
 
   def parse_data(data)

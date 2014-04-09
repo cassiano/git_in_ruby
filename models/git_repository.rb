@@ -73,6 +73,10 @@ class GitRepository
     raise NotImplementedError
   end
 
+  def commit_count
+    head_commit.commit_count
+  end
+
   protected
 
   def create_git_object!(type, data)
