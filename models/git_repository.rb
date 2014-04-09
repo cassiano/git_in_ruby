@@ -80,7 +80,11 @@ class GitRepository
   def_delegator :head_commit, :max_parents_count
 
   def clone(target_repository, branch = 'master')
-    head_commit.clone target_repository, branch
+    head_commit(load_blob_data: true).clone target_repository, branch
+  end
+
+  def checkout!
+    head_commit(load_blob_data: true).checkout!
   end
 
   protected
