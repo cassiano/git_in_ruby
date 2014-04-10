@@ -92,7 +92,7 @@ class RdbmsGitRepository < GitRepository
   private
 
   def sha1_from_raw_content(raw_content)
-    Digest::SHA1.hexdigest raw_content.inspect
+    Digest::SHA1.hexdigest raw_content.to_json
   end
 
   def db_object_for(db_object_or_sha1)
