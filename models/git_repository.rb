@@ -29,7 +29,7 @@ class GitRepository
   end
 
   def head_commit_with_blob_data(options = {})
-    head_commit load_blob_data: true
+    head_commit options.merge(load_blob_data: true)
   end
 
   def head_commit_sha1
