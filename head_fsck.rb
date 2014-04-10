@@ -29,7 +29,7 @@ end
 
 def run!(project_path, bare_repository)
   repository = FileSystemGitRepository.new(project_path: project_path, bare_repository: bare_repository)
-  repository.head_fsck
+  repository.validate
 end
 
 run! ARGV[0] || '.', ARGV[1] && ARGV[1].downcase == 'bare' if __FILE__ == $0

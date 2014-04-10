@@ -6,6 +6,11 @@ class GitRepository
 
   attr_reader :instances
 
+  def_delegator :head_commit,                 :commit_count
+  def_delegator :head_commit,                 :max_parents_count
+  def_delegator :head_commit_with_blob_data,  :checkout!
+  def_delegator :head_commit_with_blob_data,  :validate
+
   def initialize(options = {})
     options = {
       bare_repository: false
@@ -23,8 +28,8 @@ class GitRepository
     Commit.find_or_initialize_by_sha1 self, head_commit_sha1, options
   end
 
-  def head_fsck
-    head_commit(load_blob_data: true).validate
+  def head_commit_with_blob_data(options = {})
+    head_commit load_blob_data: true
   end
 
   def head_commit_sha1
@@ -76,15 +81,8 @@ class GitRepository
     raise NotImplementedError
   end
 
-  def_delegator :head_commit, :commit_count
-  def_delegator :head_commit, :max_parents_count
-
   def clone_into(target_repository, branch = 'master')
     head_commit(load_blob_data: true).clone_into target_repository, branch
-  end
-
-  def checkout!
-    head_commit(load_blob_data: true).checkout!
   end
 
   protected

@@ -23,7 +23,9 @@ class Tree < GitObject
       puts "Checking out #{filename_or_path}"
 
       case entry
-        when ExecutableFile, GroupWritableFile, Blob then
+        when SymLink, GitSubModule then
+          puts "Skipping #{filename_or_path}..."
+        when Blob then    # Blob, ExecutableFile or GroupWritableFile.
           filemode = { ExecutableFile => 0755, GroupWritableFile => 0664, Blob => 0644 }[entry.class]
 
           File.write filename_or_path, entry.data
@@ -34,7 +36,7 @@ class Tree < GitObject
           FileUtils.mkpath filename_or_path
           entry.checkout! filename_or_path
         else
-          puts "Skipping #{filename_or_path}..."
+          raise "Unexpected type (#{entry.class}) for #{filename_or_path}..."
       end
     end
   end
