@@ -1,5 +1,6 @@
 require 'yaml'
 require 'logger'
+require 'zlib'
 
 class RdbmsGitRepository < GitRepository
   attr_reader :environment, :dbconfig
@@ -59,7 +60,7 @@ class RdbmsGitRepository < GitRepository
     case type
       when :blob then
         DbBlob.create_with(
-          data: data
+          data: Zlib::Deflate.deflate(data)
         ).find_or_create_by(sha1: sha1)
       when :tree then
         DbTree.create_with(

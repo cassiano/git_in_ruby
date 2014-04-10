@@ -2,6 +2,6 @@ class DbBlob < DbObject
   alias_attribute :data, :blob_data
 
   def to_raw
-    [:blob, data]
+    [:blob, Zlib::Inflate.inflate(data)]
   end
 end
