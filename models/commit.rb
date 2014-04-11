@@ -38,7 +38,7 @@ class Commit < GitObject
     # between each of the parents and the current commit, then transforming them into deletions.
     deletions = parents.map { |parent|
       parent.tree.changes_between([tree]).find_all { |(_, action, _)| action == :created }.map { |name, _, sha1s| [name, :deleted, sha1s.reverse] }
-    }.inject([], :&)
+    }.inject(:&) || []
     updates_and_creations.concat deletions
 
     # Identify renamed files, replacing the :created and :deleted associated pair by a single :renamed one.
