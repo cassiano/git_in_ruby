@@ -80,6 +80,9 @@ class Tree < GitObject
       end
     end
 
+    # Sort entries by name.
+    entries_clones.sort! { |a, b| a[1] <=> b[1] }
+
     target_repository.create_tree! entries_clones
   end
 

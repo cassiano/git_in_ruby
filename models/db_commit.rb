@@ -5,6 +5,7 @@ class DbCommit < DbObject
 
   belongs_to              :tree, class_name: 'DbTree', foreign_key: :commit_tree_id
   has_and_belongs_to_many :parents,
+                          -> { order 'sha1' },
                           class_name:               'DbCommit',
                           join_table:               :db_commit_parents,
                           foreign_key:              :commit_id,

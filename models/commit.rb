@@ -7,7 +7,7 @@ class Commit < GitObject
 
   def parents
     parents_sha1.map do |sha1|
-      Commit.find_or_initialize_by_sha1(repository, sha1, commit_level: commit_level + 1, load_blob_data: load_blob_data?)
+      Commit.find_or_initialize_by_sha1 repository, sha1, commit_level: commit_level + 1, load_blob_data: load_blob_data?
     end
   end
 
@@ -38,7 +38,7 @@ class Commit < GitObject
     # between each of the parents and the current commit, then transforming them into deletions.
     deletions = parents.map { |parent|
       parent.tree.changes_between([tree]).find_all { |(_, action, _)| action == :created }.map { |name, _, sha1s| [name, :deleted, sha1s.reverse] }
-    }.inject(:&) || []
+    }.inject([], :&)
     updates_and_creations.concat deletions
 
     # Identify renamed files, replacing the :created and :deleted associated pair by a single :renamed one.
@@ -66,7 +66,7 @@ class Commit < GitObject
   end
 
   def clone_into(target_repository, branch = 'master')
-    parents_clones_sha1s = parents.map { |parent| parent.clone_into(target_repository, branch) }
+    parents_clones_sha1s = parents.map { |parent| parent.clone_into(target_repository, branch) }.sort
     tree_clone_sha1      = tree.clone_into(target_repository)
 
     target_repository.create_commit! branch, tree_clone_sha1, parents_clones_sha1s, author[0], committer[0], subject

@@ -4,6 +4,7 @@ class GitObject
   attr_reader :repository, :sha1, :commit_level, :type, :size, :data, :content_sha1
 
   # http://stackoverflow.com/questions/737673/how-to-read-the-mode-field-of-git-ls-trees-output
+  # Note: this particular implementation clearly violates the Open Closed Principle. For more details: http://docs.google.com/a/cleancoder.com/viewer?a=v&pid=explorer&chrome=true&srcid=0BwhCYaYDn8EgN2M5MTkwM2EtNWFkZC00ZTI3LWFjZTUtNTFhZGZiYmUzODc1&hl=en
   VALID_MODES = {
     '40000'  => 'Tree',
     '100644' => 'Blob',
