@@ -65,7 +65,13 @@ class RdbmsGitRepository < GitRepository
       when :tree then
         DbTree.create_with(
           entries: data.map do |entry|
-            DbTreeEntry.new mode: entry[0], name: entry[1], git_object: db_object_for(entry[2])
+            DbTreeEntry.new(
+              mode:       entry[0],
+              # Fixme: find out how to properly treat 'fieldnav-urls-equal-relevancy__description-meta_nav__VEJA.com_|_Agência_Estado.html'
+              # from 'veja-eleicoes-segundo-turno'.
+              name:       entry[1].dup.encode('UTF-8', 'binary', invalid: :replace, undef: :replace, replace: '?'),
+              git_object: db_object_for(entry[2])
+            )
           end
         ).find_or_create_by(sha1: sha1)
       when :commit then
