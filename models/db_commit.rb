@@ -14,6 +14,6 @@ class DbCommit < DbObject
   validates_presence_of :tree, :author, :committer, :subject
 
   def to_raw
-    [:commit, [tree.sha1, parents.map(&:sha1), author, committer, subject]]
+    [:commit, [tree.sha1, parents.map(&:sha1).sort, author, committer, subject]]
   end
 end

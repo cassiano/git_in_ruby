@@ -47,13 +47,16 @@ class MemoryGitRepository < GitRepository
     parse_object(raw_content).merge content_sha1: sha1_from_raw_content(raw_content)
   end
 
-  def create_git_object!(type, data)
-    raw_content = [type, data.size, data]
-    sha1        = sha1_from_raw_content(raw_content)
+  def create_commit_object!(data)
+    create_git_object! :commit, data
+  end
 
-    objects[sha1] ||= raw_content
+  def create_tree_object!(data)
+    create_git_object! :tree, data
+  end
 
-    sha1
+  def create_blob_object!(data)
+    create_git_object! :blob, data
   end
 
   def update_branch!(name, commit_sha1)
@@ -65,6 +68,15 @@ class MemoryGitRepository < GitRepository
   end
 
   private
+
+  def create_git_object!(type, data)
+    raw_content = [type, data.size, data]
+    sha1        = sha1_from_raw_content(raw_content)
+
+    objects[sha1] ||= raw_content
+
+    sha1
+  end
 
   def sha1_from_raw_content(raw_content)
     Digest::SHA1.hexdigest raw_content.map(&:to_s).join("\n")

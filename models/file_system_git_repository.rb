@@ -84,20 +84,16 @@ class FileSystemGitRepository < GitRepository
     parse_object(raw_content).merge content_sha1: Digest::SHA1.hexdigest(raw_content)
   end
 
-  def create_git_object!(type, data)
-    header      = "#{type} #{data.size}\0"
-    raw_content = header + data
-    sha1        = Digest::SHA1.hexdigest(raw_content)
-    path        = File.join(git_path, 'objects', sha1[0..1], sha1[2..-1])
+  def create_commit_object!(data)
+    create_git_object! :commit, data
+  end
 
-    unless File.exists?(path)
-      zipped_content = Zlib::Deflate.deflate(raw_content)
+  def create_tree_object!(data)
+    create_git_object! :tree, data
+  end
 
-      FileUtils.mkpath File.dirname(path)
-      File.write path, zipped_content
-    end
-
-    sha1
+  def create_blob_object!(data)
+    create_git_object! :blob, data
   end
 
   def update_branch!(name, commit_sha1)
@@ -113,6 +109,22 @@ class FileSystemGitRepository < GitRepository
   end
 
   private
+
+  def create_git_object!(type, data)
+    header      = "#{type} #{data.size}\0"
+    raw_content = header + data
+    sha1        = Digest::SHA1.hexdigest(raw_content)
+    path        = File.join(git_path, 'objects', sha1[0..1], sha1[2..-1])
+
+    unless File.exists?(path)
+      zipped_content = Zlib::Deflate.deflate(raw_content)
+
+      FileUtils.mkpath File.dirname(path)
+      File.write path, zipped_content
+    end
+
+    sha1
+  end
 
   def read_commit_data_row(data, label)
     rows = read_commit_data_rows(data, label)

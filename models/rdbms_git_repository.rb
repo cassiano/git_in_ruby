@@ -26,7 +26,13 @@ class RdbmsGitRepository < GitRepository
   end
 
   def format_commit_data(tree, parents, author, committer, subject)
-    [sha1_for(tree), parents.map { |parent| sha1_for(parent) }, author, committer, subject]
+    [
+      sha1_for(tree),
+      parents.map { |parent| sha1_for(parent) }.sort,
+      author,
+      committer,
+      subject.dup.encode('UTF-8', 'binary', invalid: :replace, undef: :replace, replace: '?')
+    ]
   end
 
   def parse_commit_data(data)
@@ -40,7 +46,13 @@ class RdbmsGitRepository < GitRepository
   end
 
   def format_tree_data(entries)
-    entries.map { |entry| [GitObject.mode_for_type(entry[0]), entry[1], sha1_for(entry[2])] }
+    entries.map { |entry|
+      [
+        GitObject.mode_for_type(entry[0]),
+        entry[1].dup.encode('UTF-8', 'binary', invalid: :replace, undef: :replace, replace: '?'),
+        sha1_for(entry[2])
+      ]
+    }.sort_by { |entry| entry[1].downcase }
   end
 
   def parse_tree_data(data)
@@ -53,36 +65,44 @@ class RdbmsGitRepository < GitRepository
     parse_object(raw_content).merge content_sha1: sha1_from_raw_content(raw_content)
   end
 
-  def create_git_object!(type, data)
-    raw_content = [type, data]
-    sha1        = sha1_from_raw_content(raw_content)
+  def create_commit_object!(data)
+    sha1 = sha1_from_raw_content([:commit, data])
 
-    case type
-      when :blob then
-        DbBlob.create_with(
-          data: Zlib::Deflate.deflate(data)
-        ).find_or_create_by(sha1: sha1)
-      when :tree then
-        DbTree.create_with(
-          entries: data.map do |entry|
-            DbTreeEntry.new(
-              mode:       entry[0],
-              # Fixme: find out how to properly treat 'fieldnav-urls-equal-relevancy__description-meta_nav__VEJA.com_|_Agência_Estado.html'
-              # from 'veja-eleicoes-segundo-turno'.
-              name:       entry[1].dup.encode('UTF-8', 'binary', invalid: :replace, undef: :replace, replace: '?'),
-              git_object: db_object_for(entry[2])
-            )
-          end
-        ).find_or_create_by(sha1: sha1)
-      when :commit then
-        DbCommit.create_with(
-          tree:       db_object_for(data[0]),
-          parents:    data[1].map { |parent| db_object_for(parent) },
-          author:     data[2],
-          committer:  data[3],
-          subject:    data[4]
-        ).find_or_create_by(sha1: sha1)
-    end
+    DbCommit.create_with(
+      tree:       db_object_for(data[0]),
+      parents:    data[1].map { |parent| db_object_for(parent) },
+      author:     data[2],
+      committer:  data[3],
+      subject:    data[4]
+    ).find_or_create_by(sha1: sha1)
+
+    sha1
+  end
+
+  def create_tree_object!(data)
+    sha1 = sha1_from_raw_content([:tree, data])
+
+    DbTree.create_with(
+      entries: data.map do |entry|
+        DbTreeEntry.new(
+          mode:       entry[0],
+          # Fixme: find out how to properly treat 'fieldnav-urls-equal-relevancy__description-meta_nav__VEJA.com_|_Agência_Estado.html'
+          # from 'veja-eleicoes-segundo-turno'.
+          name:       entry[1].dup.encode('UTF-8', 'binary', invalid: :replace, undef: :replace, replace: '?'),
+          git_object: db_object_for(entry[2])
+        )
+      end
+    ).find_or_create_by(sha1: sha1)
+
+    sha1
+  end
+
+  def create_blob_object!(data)
+    sha1 = sha1_from_raw_content([:blob, data])
+
+    DbBlob.create_with(
+      data: Zlib::Deflate.deflate(data)
+    ).find_or_create_by(sha1: sha1)
 
     sha1
   end

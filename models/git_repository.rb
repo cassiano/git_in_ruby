@@ -48,7 +48,7 @@ class GitRepository
 
   def create_commit!(branch_name, tree_sha1, parents_sha1, author, committer, subject)
     data        = format_commit_data(tree_sha1, parents_sha1, author, committer, subject)
-    commit_sha1 = create_git_object!(:commit, data)
+    commit_sha1 = create_commit_object!(data)
 
     update_branch! branch_name, commit_sha1
 
@@ -58,11 +58,11 @@ class GitRepository
   def create_tree!(entries)
     data = format_tree_data(entries)
 
-    create_git_object! :tree, data
+    create_tree_object! data
   end
 
   def create_blob!(data)
-    create_git_object! :blob, data
+    create_blob_object! data
   end
 
   def parse_commit_data(commit)
@@ -87,7 +87,15 @@ class GitRepository
 
   protected
 
-  def create_git_object!(type, data)
+  def create_commit_object!(data)
+    raise NotImplementedError
+  end
+
+  def create_tree_object!(data)
+    raise NotImplementedError
+  end
+
+  def create_blob_object!(data)
     raise NotImplementedError
   end
 
