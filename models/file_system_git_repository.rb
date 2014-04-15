@@ -49,9 +49,9 @@ class FileSystemGitRepository < GitRepository
     {
       tree_sha1:    read_commit_data_row(data, 'tree'),
       parents_sha1: read_commit_data_rows(data, 'parent'),
-      author:       read_commit_data_row(data, 'author')     =~ /(.*) (\d+) [+-]\d{4}/ && [$1, Time.at($2.to_i)],
-      committer:    read_commit_data_row(data, 'committer')  =~ /(.*) (\d+) [+-]\d{4}/ && [$1, Time.at($2.to_i)],
-      subject:      read_subject_rows(data)
+      author:       read_commit_data_row(data, 'author').find_and_apply_valid_encoding    =~ /(.*) (\d+) [+-]\d{4}/ && [$1, Time.at($2.to_i)],
+      committer:    read_commit_data_row(data, 'committer').find_and_apply_valid_encoding =~ /(.*) (\d+) [+-]\d{4}/ && [$1, Time.at($2.to_i)],
+      subject:      read_subject_rows(data).find_and_apply_valid_encoding
     }
   end
 
@@ -62,10 +62,12 @@ class FileSystemGitRepository < GitRepository
   end
 
   def parse_tree_data(data)
-    entries_info = data.scan(/(\d+) ([^\0]+)\0([\x00-\xFF]{20})/)
+    entries_info = data.scan(/(\d+) ([^\0]+)\0([\x00-\xFF]{20})/).map do |mode, name, sha1|
+      [mode, name.find_and_apply_valid_encoding, sha1]
+    end
 
     total_bytes = entries_info.inject(0) do |sum, (mode, name, _)|
-      sum + mode.size + name.size + 22   # 22 = " ".size + "\0".size + sha1.size
+      sum + mode.size + name.bytesize + 22   # 22 = " ".size + "\0".size + sha1.size
     end
 
     # Check if data contains any additional non-processed bytes.

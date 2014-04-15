@@ -66,6 +66,8 @@ class Commit < GitObject
   end
 
   def clone_into(target_repository, branch = 'master')
+    puts ">>> Cloning commit #{sha1}"
+
     parents_clones_sha1s = parents.map { |parent| parent.clone_into(target_repository, branch) }.sort
     tree_clone_sha1      = tree.clone_into(target_repository)
 

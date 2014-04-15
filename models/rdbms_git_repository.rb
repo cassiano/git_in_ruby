@@ -31,7 +31,7 @@ class RdbmsGitRepository < GitRepository
       parents.map { |parent| sha1_for(parent) }.sort,
       author,
       committer,
-      subject.dup.encode('UTF-8', 'binary', invalid: :replace, undef: :replace, replace: '?')
+      subject
     ]
   end
 
@@ -49,7 +49,7 @@ class RdbmsGitRepository < GitRepository
     entries.map { |entry|
       [
         GitObject.mode_for_type(entry[0]),
-        entry[1].dup.encode('UTF-8', 'binary', invalid: :replace, undef: :replace, replace: '?'),
+        entry[1],
         sha1_for(entry[2])
       ]
     }.sort_by { |entry| entry[1].downcase }
@@ -88,7 +88,7 @@ class RdbmsGitRepository < GitRepository
           mode:       entry[0],
           # Fixme: find out how to properly treat 'fieldnav-urls-equal-relevancy__description-meta_nav__VEJA.com_|_Agência_Estado.html'
           # from 'veja-eleicoes-segundo-turno'.
-          name:       entry[1].dup.encode('UTF-8', 'binary', invalid: :replace, undef: :replace, replace: '?'),
+          name:       entry[1],
           git_object: db_object_for(entry[2])
         )
       end
