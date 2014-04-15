@@ -1,5 +1,3 @@
-# encoding: US-ASCII
-
 require 'zlib'
 require 'fileutils'
 
