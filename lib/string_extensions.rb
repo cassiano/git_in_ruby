@@ -15,8 +15,7 @@ class String
   end
 
   def find_valid_encoding
-    # List all possible Ruby encodings, starting from the most restrictive (US-ASCII) and ending with the least (BINARY = ASCII-8BIT).
-    encodings = (%w(US-ASCII UTF-8 ISO-8859-1) + Encoding.aliases.values - ['ASCII-8BIT']).uniq + ['ASCII-8BIT']
+    encodings = %w(UTF-8 ISO-8859-1)
 
     encodings.find do |encoding|
       self.dup.force_encoding(encoding).valid_encoding?
