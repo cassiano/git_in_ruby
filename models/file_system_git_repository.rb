@@ -62,8 +62,8 @@ class FileSystemGitRepository < GitRepository
   def parse_tree_data(data)
     # Note: when analyzing and testing under different existing Git repositories, I have found distinct encodings being used in
     # filenames. For example: "\332ltimas_Not\355cias_das_Editorias_de_VEJA.com.html" (which is encoded using "ISO-8859-1") and
-    # "U\314\201ltimas_Noti\314\201cias_das_Editorias_de_VEJA.com.html" (which uses "UTF-8"). As a real example, check SHA1
-    # a380c9bbea98259bd0f95162ab625c75e5636819 belonging to project "veja-eleicoes-segundo-turno".
+    # "U\314\201ltimas_Noti\314\201cias_das_Editorias_de_VEJA.com.html" (which uses "UTF-8"). For a real example check SHA1
+    # a380c9bbea98259bd0f95162ab625c75e5636819 of project "veja-eleicoes-segundo-turno".
     entries_info = data.scan(/(\d+) ([^\0]+)\0([\x00-\xFF]{20})/).map do |mode, name, sha1|
       [mode, name.find_and_apply_valid_encoding, sha1]
     end
