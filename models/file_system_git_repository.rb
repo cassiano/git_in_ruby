@@ -73,7 +73,7 @@ class FileSystemGitRepository < GitRepository
     end
 
     # Check if data contains any additional non-processed bytes.
-    raise InvalidTreeData, 'The tree contains invalid data' if total_bytes != data.size
+    raise InvalidTreeData, 'The tree contains invalid data' if total_bytes != data.bytesize
 
     { entries_info: entries_info }
   end
@@ -115,7 +115,7 @@ class FileSystemGitRepository < GitRepository
   private
 
   def create_git_object!(type, data)
-    header      = "#{type} #{data.size}\0"
+    header      = "#{type} #{data.bytesize}\0"
     raw_content = header + data
     sha1        = sha1_from_raw_content(raw_content)
     path        = File.join(git_path, 'objects', sha1[0..1], sha1[2..-1])

@@ -72,9 +72,12 @@ class GitObject
 
     parse_data(@data) if @data
 
-    # Since the data will not always be available, its size must be checked here (and not later, in the :validate method).
-    raise InvalidSizeError, "Invalid size #{@size} (expected #{@data.size})" unless @size == @data.size
+    data_size = @data.respond_to?(:bytesize) ? @data.bytesize : data.size
 
+    # Since the data will not always be available, its size must be checked here (and not later, in the :validate method).
+    raise InvalidSizeError, "Invalid size #{@size} (expected #{data_size})" unless @size == data_size
+
+    # Nullify data for BLOBs if applicable.
     @data = nil if @type == :blob && !load_blob_data?
   end
 
