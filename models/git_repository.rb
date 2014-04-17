@@ -36,13 +36,21 @@ class GitRepository
     raise NotImplementedError
   end
 
+  # TODO: verify whether this method should be concrete and use the "template method" design pattern, calling methods :parse_object
+  # and :sha1_from_raw_content!
   # Must return a hash with the following keys: type, size, data and content_sha1.
   def load_object(sha1)
     raise NotImplementedError
   end
 
+  # TODO: verify whether this method should really be abstract! Shouldn't it belong only to subclasses which decide to implement it?
   # Must return a hash with the following keys: type, size and data.
   def parse_object(raw_content)
+    raise NotImplementedError
+  end
+
+  # TODO: verify whether this method should really be abstract! Shouldn't it belong only to subclasses which decide to implement it?
+  def sha1_from_raw_content(raw_content)
     raise NotImplementedError
   end
 
