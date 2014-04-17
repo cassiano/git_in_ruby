@@ -1,3 +1,6 @@
+require 'json'
+require 'base64'
+
 class MemoryGitRepository < GitRepository
   attr_reader :branches, :head, :objects
 
@@ -32,7 +35,13 @@ class MemoryGitRepository < GitRepository
   end
 
   def format_tree_data(entries)
-    entries.map { |entry| [GitObject.mode_for_type(entry[0]), entry[1], entry[2]] }
+    entries.map do |entry|
+      [
+        GitObject.mode_for_type(entry[0]),
+        entry[1],
+        entry[2]
+      ]
+    end
   end
 
   def parse_tree_data(data)
@@ -40,9 +49,7 @@ class MemoryGitRepository < GitRepository
   end
 
   def load_object(sha1)
-    raise MissingObjectError, "Object not found!" unless objects[sha1]
-
-    raw_content = objects[sha1]
+    raise MissingObjectError, "Object not found!" unless (raw_content = objects[sha1])
 
     parse_object(raw_content).merge content_sha1: sha1_from_raw_content(raw_content)
   end
@@ -79,6 +86,6 @@ class MemoryGitRepository < GitRepository
   end
 
   def sha1_from_raw_content(raw_content)
-    Digest::SHA1.hexdigest raw_content.map(&:to_s).join("\n")
+    Digest::SHA1.hexdigest raw_content.map { |item| String === item ? Base64.encode64(item) : item }.to_json
   end
 end

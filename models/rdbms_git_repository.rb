@@ -1,6 +1,7 @@
 require 'yaml'
 require 'logger'
 require 'zlib'
+require 'json'
 
 class RdbmsGitRepository < GitRepository
   attr_reader :environment, :dbconfig
@@ -88,8 +89,6 @@ class RdbmsGitRepository < GitRepository
       entries: data.map do |entry|
         DbTreeEntry.new(
           mode:       entry[0],
-          # Fixme: find out how to properly treat 'fieldnav-urls-equal-relevancy__description-meta_nav__VEJA.com_|_Agência_Estado.html'
-          # from 'veja-eleicoes-segundo-turno'.
           name:       entry[1],
           git_object: db_object_for(entry[2])
         )
@@ -120,7 +119,7 @@ class RdbmsGitRepository < GitRepository
   private
 
   def sha1_from_raw_content(raw_content)
-    Digest::SHA1.hexdigest raw_content.to_json
+    Digest::SHA1.hexdigest raw_content.map { |item| String === item ? Base64.encode64(item) : item }.to_json
   end
 
   def db_object_for(db_object_or_sha1)

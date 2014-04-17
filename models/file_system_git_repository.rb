@@ -85,7 +85,7 @@ class FileSystemGitRepository < GitRepository
 
     raw_content = Zlib::Inflate.inflate(File.read(path))
 
-    parse_object(raw_content).merge content_sha1: Digest::SHA1.hexdigest(raw_content)
+    parse_object(raw_content).merge content_sha1: sha1_from_raw_content(raw_content)
   end
 
   def create_commit_object!(data)
@@ -117,7 +117,7 @@ class FileSystemGitRepository < GitRepository
   def create_git_object!(type, data)
     header      = "#{type} #{data.size}\0"
     raw_content = header + data
-    sha1        = Digest::SHA1.hexdigest(raw_content)
+    sha1        = sha1_from_raw_content(raw_content)
     path        = File.join(git_path, 'objects', sha1[0..1], sha1[2..-1])
 
     unless File.exists?(path)
@@ -164,5 +164,9 @@ class FileSystemGitRepository < GitRepository
     minute = (seconds.abs - hour * 3600) / 60
 
     '%1s%02d%02d' % [sign, hour, minute]
+  end
+
+  def sha1_from_raw_content(raw_content)
+    Digest::SHA1.hexdigest raw_content
   end
 end
