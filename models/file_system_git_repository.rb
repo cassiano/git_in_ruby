@@ -55,7 +55,7 @@ class FileSystemGitRepository < GitRepository
 
   def format_tree_data(entries)
     entries.map { |entry|
-      GitObject.mode_for_type(entry[0]) + " " + entry[1] + "\0" + Sha1Util.byte_array_sha1(entry[2])
+      GitObject.mode_for_type(entry[0]) + ' ' + entry[1].dup.force_encoding('ASCII-8BIT') + "\0" + Sha1Util.byte_array_sha1(entry[2])
     }.join
   end
 
