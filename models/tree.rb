@@ -79,7 +79,7 @@ class Tree < GitObject
       [git_object.class.name.underscore.to_sym, name, git_object.clone_into(target_repository)]
     end
 
-    target_repository.create_tree! entries_clones
+    target_repository.create_tree! entries_clones, self.sha1
   end
 
   protected
