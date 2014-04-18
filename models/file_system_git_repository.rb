@@ -44,12 +44,15 @@ class FileSystemGitRepository < GitRepository
   end
 
   def parse_commit_data(data)
+    committer = read_commit_data_row(data, 'committer', false)
+    subject   = read_subject_rows(data, false)
+
     {
       tree_sha1:    read_commit_data_row(data, 'tree'),
       parents_sha1: read_commit_data_rows(data, 'parent'),
-      author:       read_commit_data_row(data, 'author').find_and_apply_valid_encoding    =~ /(.*) (\d+) [+-]\d{4}/ && [$1, Time.at($2.to_i)],
-      committer:    read_commit_data_row(data, 'committer').find_and_apply_valid_encoding =~ /(.*) (\d+) [+-]\d{4}/ && [$1, Time.at($2.to_i)],
-      subject:      read_subject_rows(data).find_and_apply_valid_encoding
+      author:       read_commit_data_row(data, 'author').find_and_apply_valid_encoding =~ /(.*) (\d+) [+-]\d{4}/ && [$1, Time.at($2.to_i)],
+      committer:    committer && (committer.find_and_apply_valid_encoding =~ /(.*) (\d+) [+-]\d{4}/ && [$1, Time.at($2.to_i)]),
+      subject:      subject && subject.find_and_apply_valid_encoding
     }
   end
 
@@ -116,7 +119,7 @@ class FileSystemGitRepository < GitRepository
 
   def create_git_object!(type, data)
     header      = "#{type} #{data.bytesize}\0"
-    raw_content = header + data
+    raw_content = header + (data || '')
     sha1        = sha1_from_raw_content(raw_content)
     path        = File.join(git_path, 'objects', sha1[0..1], sha1[2..-1])
 
@@ -130,10 +133,10 @@ class FileSystemGitRepository < GitRepository
     sha1
   end
 
-  def read_commit_data_row(data, label)
+  def read_commit_data_row(data, label, required = true)
     rows = read_commit_data_rows(data, label)
 
-    if rows.size == 0
+    if rows.size == 0 && required
       raise MissingCommitDataError, "Missing #{label} in commit."
     elsif rows.size > 1
       raise ExcessiveCommitDataError, "Excessive #{label} rows in commit."
@@ -150,12 +153,12 @@ class FileSystemGitRepository < GitRepository
     rows[0...(rows.index('') || -1)].find_all { |row| row.split[0] == label }.map { |row| row[/\A\w+ (.*)/, 1] }
   end
 
-  def read_subject_rows(data)
+  def read_subject_rows(data, required = true)
     rows = data.split("\n")
 
-    raise MissingCommitDataError, "Missing subject in commit." unless (empty_row_index = rows.index(''))
+    raise MissingCommitDataError, "Missing subject in commit." if required and !(empty_row_index = rows.index(''))
 
-    rows[empty_row_index+1..-1].join("\n")
+    empty_row_index && rows[empty_row_index+1..-1].join("\n")
   end
 
   def time_offset_for_commit(seconds)

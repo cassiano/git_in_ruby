@@ -77,7 +77,7 @@ class MemoryGitRepository < GitRepository
   private
 
   def create_git_object!(type, data)
-    raw_content = [type, data.size, data]
+    raw_content = [type, data && data.size, data]
     sha1        = sha1_from_raw_content(raw_content)
 
     objects[sha1] ||= raw_content

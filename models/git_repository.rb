@@ -116,6 +116,4 @@ class GitRepository
   def format_tree_data(entries)
     raise NotImplementedError
   end
-
-  remember :head_commit_sha1
 end

@@ -11,7 +11,7 @@ class DbCommit < DbObject
                           foreign_key:              :commit_id,
                           association_foreign_key:  :parent_id
 
-  validates_presence_of :tree, :author, :committer, :subject
+  validates_presence_of :tree, :author
 
   def to_raw
     [:commit, [tree.sha1, parents.map(&:sha1).sort, author, committer, subject]]
