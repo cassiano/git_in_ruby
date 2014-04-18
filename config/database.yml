@@ -1,13 +1,13 @@
 development:
-  adapter: mysql2
+  adapter: jdbcmysql
   database: git_development
-  username:
+  username: root
   password:
   host: localhost
 
 test:
-  adapter: mysql2
+  adapter: jdbcmysql
   database: git_test
-  username:
+  username: root
   password:
   host: localhost

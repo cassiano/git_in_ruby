@@ -1,6 +1,7 @@
 # A sample Gemfile
 source "https://rubygems.org"
 
-gem 'mysql2'
 gem 'activerecord'
 gem 'foreigner'
+gem 'jdbc-mysql'
+gem 'activerecord-jdbcmysql-adapter'
