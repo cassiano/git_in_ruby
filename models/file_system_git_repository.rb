@@ -154,9 +154,10 @@ class FileSystemGitRepository < GitRepository
   end
 
   def read_subject_rows(data, required = true)
-    rows = data.split("\n")
+    rows            = data.split("\n")
+    empty_row_index = rows.index('')
 
-    raise MissingCommitDataError, "Missing subject in commit." if required and !(empty_row_index = rows.index(''))
+    raise MissingCommitDataError, "Missing subject in commit." if required and !empty_row_index
 
     empty_row_index && rows[empty_row_index+1..-1].join("\n")
   end
