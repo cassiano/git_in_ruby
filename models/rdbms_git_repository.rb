@@ -68,7 +68,7 @@ class RdbmsGitRepository < GitRepository
     parse_object(raw_content).merge content_sha1: sha1_from_raw_content(raw_content)
   end
 
-  def create_commit_object!(data, clone_sha1 = nil)
+  def create_commit_object!(data, cloned_from_sha1 = nil)
     sha1 = sha1_from_raw_content([:commit, data])
 
     DbCommit.create_with(
@@ -77,13 +77,13 @@ class RdbmsGitRepository < GitRepository
       author:     data[2],
       committer:  data[3],
       subject:    data[4],
-      clone_sha1: clone_sha1
+      cloned_from_sha1: cloned_from_sha1
     ).find_or_create_by(sha1: sha1)
 
     sha1
   end
 
-  def create_tree_object!(data, clone_sha1 = nil)
+  def create_tree_object!(data, cloned_from_sha1 = nil)
     sha1 = sha1_from_raw_content([:tree, data])
 
     DbTree.create_with(
@@ -94,18 +94,18 @@ class RdbmsGitRepository < GitRepository
           git_object: db_object_for(entry[2])
         )
       end,
-      clone_sha1: clone_sha1
+      cloned_from_sha1: cloned_from_sha1
     ).find_or_create_by(sha1: sha1)
 
     sha1
   end
 
-  def create_blob_object!(data, clone_sha1 = nil)
+  def create_blob_object!(data, cloned_from_sha1 = nil)
     sha1 = sha1_from_raw_content([:blob, data])
 
     DbBlob.create_with(
-      data:       Zlib::Deflate.deflate(data),
-      clone_sha1: clone_sha1
+      data:             Zlib::Deflate.deflate(data),
+      cloned_from_sha1: cloned_from_sha1
     ).find_or_create_by(sha1: sha1)
 
     sha1

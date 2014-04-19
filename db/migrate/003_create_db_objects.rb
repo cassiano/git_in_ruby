@@ -3,8 +3,7 @@ class CreateDbObjects < ActiveRecord::Migration
     create_table :db_objects do |t|
       t.column :sha1, :string, limit: 40, null: false
       t.column :type, :string, limit: 16, null: false      # DbBlob, DbTree or DbCommit.
-
-      t.column :clone_sha1, :string, limit: 40
+      t.column :cloned_from_sha1, :string, limit: 40
 
       # BLOBs.
       t.column :blob_data, :longblob

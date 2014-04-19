@@ -54,23 +54,23 @@ class GitRepository
     raise NotImplementedError
   end
 
-  def create_commit!(branch_name, tree_sha1, parents_sha1, author, committer, subject, clone_sha1 = nil)
+  def create_commit!(branch_name, tree_sha1, parents_sha1, author, committer, subject, cloned_from_sha1 = nil)
     data        = format_commit_data(tree_sha1, parents_sha1, author, committer, subject)
-    commit_sha1 = create_commit_object!(data, clone_sha1)
+    commit_sha1 = create_commit_object!(data, cloned_from_sha1)
 
     update_branch! branch_name, commit_sha1
 
     commit_sha1
   end
 
-  def create_tree!(entries, clone_sha1 = nil)
+  def create_tree!(entries, cloned_from_sha1 = nil)
     data = format_tree_data(entries)
 
-    create_tree_object! data, clone_sha1
+    create_tree_object! data, cloned_from_sha1
   end
 
-  def create_blob!(data, clone_sha1 = nil)
-    create_blob_object! data, clone_sha1
+  def create_blob!(data, cloned_from_sha1 = nil)
+    create_blob_object! data, cloned_from_sha1
   end
 
   def parse_commit_data(commit)
@@ -95,15 +95,15 @@ class GitRepository
 
   protected
 
-  def create_commit_object!(data, clone_sha1 = nil)
+  def create_commit_object!(data, cloned_from_sha1 = nil)
     raise NotImplementedError
   end
 
-  def create_tree_object!(data, clone_sha1 = nil)
+  def create_tree_object!(data, cloned_from_sha1 = nil)
     raise NotImplementedError
   end
 
-  def create_blob_object!(data, clone_sha1 = nil)
+  def create_blob_object!(data, cloned_from_sha1 = nil)
     raise NotImplementedError
   end
 

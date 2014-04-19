@@ -16,7 +16,7 @@ class Tree < GitObject
     entries.values.each &:validate
   end
 
-  def checkout!(destination_path = nil)
+  def checkout!(destination_path = File.join('checkout_files', sha1[0..6]))
     entries.each do |name, entry|
       filename_or_path = destination_path ? File.join(destination_path, name) : name
 
@@ -26,10 +26,7 @@ class Tree < GitObject
         when SymLink, GitSubModule then
           puts "Skipping #{filename_or_path}..."
         when Blob then    # Blob, ExecutableFile or GroupWritableFile.
-          filemode = { ExecutableFile => 0755, GroupWritableFile => 0664, Blob => 0644 }[entry.class]
-
-          File.write filename_or_path, entry.data
-          File.chmod filemode, filename_or_path
+          entry.checkout! filename_or_path
         when Tree then
           puts "Creating folder #{filename_or_path}"
 

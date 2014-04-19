@@ -54,15 +54,15 @@ class MemoryGitRepository < GitRepository
     parse_object(raw_content).merge content_sha1: sha1_from_raw_content(raw_content)
   end
 
-  def create_commit_object!(data, clone_sha1 = nil)
+  def create_commit_object!(data, cloned_from_sha1 = nil)
     create_git_object! :commit, data
   end
 
-  def create_tree_object!(data, clone_sha1 = nil)
+  def create_tree_object!(data, cloned_from_sha1 = nil)
     create_git_object! :tree, data
   end
 
-  def create_blob_object!(data, clone_sha1 = nil)
+  def create_blob_object!(data, cloned_from_sha1 = nil)
     create_git_object! :blob, data
   end
 
