@@ -20,10 +20,6 @@ class MemoryGitRepository < GitRepository
     { type: raw_content[0], size: raw_content[1], data: raw_content[2] }
   end
 
-  def format_commit_data(tree_sha1, parents_sha1, author, committer, subject)
-    [tree_sha1, parents_sha1, author, committer, subject]
-  end
-
   def parse_commit_data(data)
     {
       tree_sha1:    data[0],
@@ -32,16 +28,6 @@ class MemoryGitRepository < GitRepository
       committer:    data[3],
       subject:      data[4]
     }
-  end
-
-  def format_tree_data(entries)
-    entries.map do |entry|
-      [
-        GitObject.mode_for_type(entry[0]),
-        entry[1],
-        entry[2]
-      ]
-    end
   end
 
   def parse_tree_data(data)
@@ -54,12 +40,12 @@ class MemoryGitRepository < GitRepository
     parse_object(raw_content).merge content_sha1: sha1_from_raw_content(raw_content)
   end
 
-  def create_commit_object!(data, cloned_from_sha1 = nil)
-    create_git_object! :commit, data
+  def create_commit_object!(tree_sha1, parents_sha1, author, committer, subject, cloned_from_sha1 = nil)
+    create_git_object! :commit, format_commit_data(tree_sha1, parents_sha1, author, committer, subject)
   end
 
-  def create_tree_object!(data, cloned_from_sha1 = nil)
-    create_git_object! :tree, data
+  def create_tree_object!(entries, cloned_from_sha1 = nil)
+    create_git_object! :tree, format_tree_data(entries)
   end
 
   def create_blob_object!(data, cloned_from_sha1 = nil)
@@ -75,6 +61,20 @@ class MemoryGitRepository < GitRepository
   end
 
   private
+
+  def format_commit_data(tree_sha1, parents_sha1, author, committer, subject)
+    [tree_sha1, parents_sha1, author, committer, subject]
+  end
+
+  def format_tree_data(entries)
+    entries.map do |entry|
+      [
+        GitObject.mode_for_type(entry[0]),
+        entry[1],
+        entry[2]
+      ]
+    end
+  end
 
   def create_git_object!(type, data)
     raw_content = [type, data && data.size, data]

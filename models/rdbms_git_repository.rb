@@ -26,16 +26,6 @@ class RdbmsGitRepository < GitRepository
     { type: type, size: object.size, data: object }
   end
 
-  def format_commit_data(tree, parents, author, committer, subject)
-    [
-      sha1_for(tree),
-      parents.map { |parent| sha1_for(parent) }.sort,
-      author,
-      committer,
-      subject
-    ]
-  end
-
   def parse_commit_data(data)
     {
       tree_sha1:    data[0],
@@ -44,16 +34,6 @@ class RdbmsGitRepository < GitRepository
       committer:    data[3],
       subject:      data[4]
     }
-  end
-
-  def format_tree_data(entries)
-    entries.map { |entry|
-      [
-        GitObject.mode_for_type(entry[0]),
-        entry[1],
-        sha1_for(entry[2])
-      ]
-    }.sort_by { |entry| entry[1].downcase }
   end
 
   def parse_tree_data(data)
@@ -68,7 +48,8 @@ class RdbmsGitRepository < GitRepository
     parse_object(raw_content).merge content_sha1: sha1_from_raw_content(raw_content)
   end
 
-  def create_commit_object!(data, cloned_from_sha1 = nil)
+  def create_commit_object!(tree, parents, author, committer, subject, cloned_from_sha1 = nil)
+    data = format_commit_data(tree, parents, author, committer, subject)
     sha1 = sha1_from_raw_content([:commit, data])
 
     DbCommit.create_with(
@@ -83,7 +64,8 @@ class RdbmsGitRepository < GitRepository
     sha1
   end
 
-  def create_tree_object!(data, cloned_from_sha1 = nil)
+  def create_tree_object!(entries, cloned_from_sha1 = nil)
+    data = format_tree_data(entries)
     sha1 = sha1_from_raw_content([:tree, data])
 
     DbTree.create_with(
@@ -120,6 +102,26 @@ class RdbmsGitRepository < GitRepository
   end
 
   private
+
+  def format_commit_data(tree, parents, author, committer, subject)
+    [
+      sha1_for(tree),
+      parents.map { |parent| sha1_for(parent) }.sort,
+      author,
+      committer,
+      subject
+    ]
+  end
+
+  def format_tree_data(entries)
+    entries.map { |entry|
+      [
+        GitObject.mode_for_type(entry[0]),
+        entry[1],
+        sha1_for(entry[2])
+      ]
+    }.sort_by { |entry| entry[1].downcase }
+  end
 
   def sha1_from_raw_content(raw_content)
     Digest::SHA1.hexdigest raw_content.map { |item| String === item ? Base64.encode64(item) : item }.to_json

@@ -29,21 +29,6 @@ class FileSystemGitRepository < GitRepository
     { type: type, size: size, data: data }
   end
 
-  def format_commit_data(tree_sha1, parents_sha1, author, committer, subject)
-    author_elapsed_time          = author[1].to_i
-    author_elapsed_time_offet    = time_offset_for_commit(author[1].utc_offset)
-    committer_elapsed_time       = committer[1].to_i
-    committer_elapsed_time_offet = time_offset_for_commit(committer[1].utc_offset)
-
-    data = ""
-    data << "tree #{tree_sha1}\n"
-    data << parents_sha1.map { |sha1| "parent #{sha1}\n" }.join
-    data << "author #{author} #{author_elapsed_time} #{author_elapsed_time_offet}\n"
-    data << "committer #{committer} #{committer_elapsed_time} #{committer_elapsed_time_offet}\n"
-    data << "\n"
-    data << subject + "\n"
-  end
-
   def parse_commit_data(data)
     committer = read_commit_data_row(data, 'committer', false)
 
@@ -54,12 +39,6 @@ class FileSystemGitRepository < GitRepository
       committer:    committer && (committer.find_and_apply_valid_encoding =~ /(.*) (\d+) ([+-]\d{4})/ && [$1, Time.at($2.to_i).utc, $3]),
       subject:      (subject = read_subject_rows(data)) && subject.find_and_apply_valid_encoding
     }
-  end
-
-  def format_tree_data(entries)
-    entries.map { |entry|
-      GitObject.mode_for_type(entry[0]) + ' ' + entry[1].dup.force_encoding('ASCII-8BIT') + "\0" + Sha1Util.byte_array_sha1(entry[2])
-    }.join
   end
 
   def parse_tree_data(data)
@@ -91,12 +70,12 @@ class FileSystemGitRepository < GitRepository
     parse_object(raw_content).merge content_sha1: sha1_from_raw_content(raw_content)
   end
 
-  def create_commit_object!(data, cloned_from_sha1 = nil)
-    create_git_object! :commit, data
+  def create_commit_object!(tree_sha1, parents_sha1, author, committer, subject, cloned_from_sha1 = nil)
+    create_git_object! :commit, format_commit_data(tree_sha1, parents_sha1, author, committer, subject)
   end
 
-  def create_tree_object!(data, cloned_from_sha1 = nil)
-    create_git_object! :tree, data
+  def create_tree_object!(entries, cloned_from_sha1 = nil)
+    create_git_object! :tree, format_tree_data(entries)
   end
 
   def create_blob_object!(data, cloned_from_sha1 = nil)
@@ -116,6 +95,27 @@ class FileSystemGitRepository < GitRepository
   end
 
   private
+
+  def format_commit_data(tree_sha1, parents_sha1, author, committer, subject)
+    author_elapsed_time          = author[1].to_i
+    author_elapsed_time_offet    = time_offset_for_commit(author[1].utc_offset)
+    committer_elapsed_time       = committer[1].to_i
+    committer_elapsed_time_offet = time_offset_for_commit(committer[1].utc_offset)
+
+    data = ""
+    data << "tree #{tree_sha1}\n"
+    data << parents_sha1.map { |sha1| "parent #{sha1}\n" }.join
+    data << "author #{author} #{author_elapsed_time} #{author_elapsed_time_offet}\n"
+    data << "committer #{committer} #{committer_elapsed_time} #{committer_elapsed_time_offet}\n"
+    data << "\n"
+    data << subject + "\n"
+  end
+
+  def format_tree_data(entries)
+    entries.map { |entry|
+      GitObject.mode_for_type(entry[0]) + ' ' + entry[1].dup.force_encoding('ASCII-8BIT') + "\0" + Sha1Util.byte_array_sha1(entry[2])
+    }.join
+  end
 
   def create_git_object!(type, data)
     header      = "#{type} #{data.bytesize}\0"
