@@ -2,7 +2,7 @@ class Blob < GitObject
   def validate_data
   end
 
-  def checkout!(destination_path = File.join('checkout_files', sha1[0..6]))
+  def checkout!(destination_path = default_checkout_folder)
     filemode = { ExecutableFile => 0755, GroupWritableFile => 0664, Blob => 0644 }[self.class]
 
     File.write destination_path, data

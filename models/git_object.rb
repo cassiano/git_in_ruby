@@ -57,6 +57,10 @@ class GitObject
     VALID_MODES.inject({}) { |acc, (mode, object_type)| acc.merge object_type.underscore.to_sym => mode }[type]
   end
 
+  def default_checkout_folder
+    File.join 'checkout_files', sha1[0..6]
+  end
+
   protected
 
   def parse_data(data)

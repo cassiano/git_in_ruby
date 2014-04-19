@@ -26,7 +26,7 @@ class Commit < GitObject
     parents.each &:validate
   end
 
-  def checkout!(destination_path = File.join('checkout_files', sha1[0..6]))
+  def checkout!(destination_path = default_checkout_folder)
     FileUtils.mkpath destination_path
     tree.checkout! destination_path
   end

@@ -16,7 +16,7 @@ class Tree < GitObject
     entries.values.each &:validate
   end
 
-  def checkout!(destination_path = File.join('checkout_files', sha1[0..6]))
+  def checkout!(destination_path = default_checkout_folder)
     entries.each do |name, entry|
       filename_or_path = destination_path ? File.join(destination_path, name) : name
 
