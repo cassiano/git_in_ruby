@@ -12,8 +12,12 @@ class CreateDbObjects < ActiveRecord::Migration
 
       # Commits.
       t.belongs_to  :commit_tree
-      t.column      :commit_author, :string
-      t.column      :commit_committer, :string
+      t.column      :commit_author_name, :string
+      t.column      :commit_author_date, :datetime
+      t.column      :commit_author_date_gmt_offset, :string, limit: 5
+      t.column      :commit_committer_name, :string
+      t.column      :commit_committer_date, :datetime
+      t.column      :commit_committer_date_gmt_offset, :string, limit: 5
       t.column      :commit_subject, :text
     end
 

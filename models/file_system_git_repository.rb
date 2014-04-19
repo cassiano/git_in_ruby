@@ -30,29 +30,29 @@ class FileSystemGitRepository < GitRepository
   end
 
   def format_commit_data(tree_sha1, parents_sha1, author, committer, subject)
-    current_time                 = Time.now
-    current_time_seconds_elapsed = current_time.to_i                                  # Seconds elapsed since 01/Jan/1970 00:00:00.
-    current_time_utc_offset      = time_offset_for_commit(current_time.utc_offset)    # Should range from '-2359' to '+2359'.
+    author_elapsed_time          = author[1].to_i
+    author_elapsed_time_offet    = time_offset_for_commit(author[1].utc_offset)
+    committer_elapsed_time       = committer[1].to_i
+    committer_elapsed_time_offet = time_offset_for_commit(committer[1].utc_offset)
 
     data = ""
     data << "tree #{tree_sha1}\n"
     data << parents_sha1.map { |sha1| "parent #{sha1}\n" }.join
-    data << "author #{author} #{current_time_seconds_elapsed} #{current_time_utc_offset}\n"
-    data << "committer #{committer} #{current_time_seconds_elapsed} #{current_time_utc_offset}\n"
+    data << "author #{author} #{author_elapsed_time} #{author_elapsed_time_offet}\n"
+    data << "committer #{committer} #{committer_elapsed_time} #{committer_elapsed_time_offet}\n"
     data << "\n"
     data << subject + "\n"
   end
 
   def parse_commit_data(data)
     committer = read_commit_data_row(data, 'committer', false)
-    subject   = read_subject_rows(data, false)
 
     {
       tree_sha1:    read_commit_data_row(data, 'tree'),
       parents_sha1: read_commit_data_rows(data, 'parent'),
-      author:       read_commit_data_row(data, 'author').find_and_apply_valid_encoding =~ /(.*) (\d+) [+-]\d{4}/ && [$1, Time.at($2.to_i)],
-      committer:    committer && (committer.find_and_apply_valid_encoding =~ /(.*) (\d+) [+-]\d{4}/ && [$1, Time.at($2.to_i)]),
-      subject:      subject && subject.find_and_apply_valid_encoding
+      author:       read_commit_data_row(data, 'author').find_and_apply_valid_encoding =~ /(.*) (\d+) ([+-]\d{4})/ && [$1, Time.at($2.to_i).utc, $3],
+      committer:    committer && (committer.find_and_apply_valid_encoding =~ /(.*) (\d+) ([+-]\d{4})/ && [$1, Time.at($2.to_i).utc, $3]),
+      subject:      (subject = read_subject_rows(data)) && subject.find_and_apply_valid_encoding
     }
   end
 
@@ -153,11 +153,11 @@ class FileSystemGitRepository < GitRepository
     rows[0...(rows.index('') || -1)].find_all { |row| row.split[0] == label }.map { |row| row[/\A\w+ (.*)/, 1] }
   end
 
-  def read_subject_rows(data, required = true)
+  def read_subject_rows(data)
     rows            = data.split("\n")
     empty_row_index = rows.index('')
 
-    raise MissingCommitDataError, "Missing subject in commit." if required and !empty_row_index
+    puts ">>> [WARNING] Missing subject in commit." if !empty_row_index
 
     empty_row_index && rows[empty_row_index+1..-1].join("\n")
   end

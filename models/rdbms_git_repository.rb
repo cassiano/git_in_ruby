@@ -72,11 +72,11 @@ class RdbmsGitRepository < GitRepository
     sha1 = sha1_from_raw_content([:commit, data])
 
     DbCommit.create_with(
-      tree:       db_object_for(data[0]),
-      parents:    data[1].map { |parent| db_object_for(parent) },
-      author:     data[2],
-      committer:  data[3],
-      subject:    data[4],
+      tree:             db_object_for(data[0]),
+      parents:          data[1].map { |parent| db_object_for(parent) },
+      author:           data[2],
+      committer:        data[3],
+      subject:          data[4],
       cloned_from_sha1: cloned_from_sha1
     ).find_or_create_by(sha1: sha1)
 
