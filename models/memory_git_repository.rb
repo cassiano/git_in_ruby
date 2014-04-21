@@ -49,7 +49,7 @@ class MemoryGitRepository < GitRepository
   end
 
   def create_blob_object!(data, cloned_from_sha1 = nil)
-    create_git_object! :blob, data
+    create_git_object! :blob, data || ''
   end
 
   def update_branch!(name, commit_sha1)

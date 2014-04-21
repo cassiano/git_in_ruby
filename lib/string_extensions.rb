@@ -22,7 +22,7 @@ class String
     end
   end
 
-  def find_and_apply_valid_encoding
-    self.force_encoding find_valid_encoding
+  def as_utf8
+    self.force_encoding(find_valid_encoding).encode('UTF-8')
   end
 end

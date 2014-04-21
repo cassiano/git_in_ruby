@@ -53,6 +53,7 @@ class Commit < GitObject
     }
   end
 
+  # TODO: implement a better algorithm. This one incorrectly returns 0 for already calculated commits.
   def commit_count
     return 0 if @counted
 

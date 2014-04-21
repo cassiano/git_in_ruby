@@ -30,14 +30,18 @@ class FileSystemGitRepository < GitRepository
   end
 
   def parse_commit_data(data)
-    committer = read_commit_data_row(data, 'committer', false)
+    tree_sha1    = read_commit_data_row(data, 'tree')
+    parents_sha1 = read_commit_data_rows(data, 'parent')
+    author       = read_commit_data_row(data, 'author')
+    committer    = read_commit_data_row(data, 'committer')
+    subject      = read_subject_rows(data)
 
     {
-      tree_sha1:    read_commit_data_row(data, 'tree'),
-      parents_sha1: read_commit_data_rows(data, 'parent'),
-      author:       read_commit_data_row(data, 'author').find_and_apply_valid_encoding =~ /(.*) (\d+) ([+-]\d{4})/ && [$1, Time.at($2.to_i).utc, $3],
-      committer:    committer && (committer.find_and_apply_valid_encoding =~ /(.*) (\d+) ([+-]\d{4})/ && [$1, Time.at($2.to_i).utc, $3]),
-      subject:      (subject = read_subject_rows(data)) && subject.find_and_apply_valid_encoding
+      tree_sha1:    tree_sha1,
+      parents_sha1: parents_sha1,
+      author:       author.as_utf8 =~ /(.*) (\d+) ([+-]\d{4})/ && [$1, Time.at($2.to_i).utc, $3],
+      committer:    committer && (committer.as_utf8 =~ /(.*) (\d+) ([+-]\d{4})/ && [$1, Time.at($2.to_i).utc, $3]),
+      subject:      subject && subject.as_utf8
     }
   end
 
@@ -47,7 +51,7 @@ class FileSystemGitRepository < GitRepository
     # "U\314\201ltimas_Noti\314\201cias_das_Editorias_de_VEJA.com.html" (which uses "UTF-8"). For a real example check SHA1
     # a380c9bbea98259bd0f95162ab625c75e5636819 of project "veja-eleicoes-segundo-turno".
     entries_info = data.scan(/(\d+) ([^\0]+)\0([\x00-\xFF]{20})/).map do |mode, name, sha1|
-      [mode, name.find_and_apply_valid_encoding, sha1]
+      [mode, name.as_utf8, sha1]
     end
 
     total_bytes = entries_info.inject(0) do |sum, (mode, name, _)|
@@ -79,7 +83,7 @@ class FileSystemGitRepository < GitRepository
   end
 
   def create_blob_object!(data, cloned_from_sha1 = nil)
-    create_git_object! :blob, data
+    create_git_object! :blob, data || ''
   end
 
   def update_branch!(name, commit_sha1)
@@ -97,18 +101,20 @@ class FileSystemGitRepository < GitRepository
   private
 
   def format_commit_data(tree_sha1, parents_sha1, author, committer, subject)
-    author_elapsed_time          = author[1].to_i
-    author_elapsed_time_offet    = time_offset_for_commit(author[1].utc_offset)
-    committer_elapsed_time       = committer[1].to_i
-    committer_elapsed_time_offet = time_offset_for_commit(committer[1].utc_offset)
-
     data = ""
+
     data << "tree #{tree_sha1}\n"
     data << parents_sha1.map { |sha1| "parent #{sha1}\n" }.join
-    data << "author #{author} #{author_elapsed_time} #{author_elapsed_time_offet}\n"
-    data << "committer #{committer} #{committer_elapsed_time} #{committer_elapsed_time_offet}\n"
-    data << "\n"
-    data << subject + "\n"
+    data << "author #{author[0]} #{author[1].to_i} #{author[2]}\n"
+
+    if committer
+      data << "committer #{committer[0]} #{committer[1].to_i} #{committer[2]}\n"
+    end
+
+    if subject
+      data << "\n"
+      data << subject + "\n"
+    end
   end
 
   def format_tree_data(entries)
@@ -119,7 +125,7 @@ class FileSystemGitRepository < GitRepository
 
   def create_git_object!(type, data)
     header      = "#{type} #{data.bytesize}\0"
-    raw_content = header + (data || '')
+    raw_content = header + data
     sha1        = sha1_from_raw_content(raw_content)
     path        = File.join(git_path, 'objects', sha1[0..1], sha1[2..-1])
 
@@ -145,12 +151,16 @@ class FileSystemGitRepository < GitRepository
     rows[0]
   end
 
+  # Fix bug found in SHA1 452ce291a99131768e2d61d2dcf8a4a1b78d39a3 of the Git source repo.
   def read_commit_data_rows(data, label)
     rows = data.split("\n")
 
-    # Returne all rows containing the searched label, making sure we do not read data after the 1st empty row
+    subject_rows_start_index = rows.index('')
+    last_searched_row        = subject_rows_start_index ? subject_rows_start_index - 1 : -1
+
+    # Return all rows containing the searched label, making sure we do not read data after the 1st empty row
     # (which usually contains a commit's subject).
-    rows[0...(rows.index('') || -1)].find_all { |row| row.split[0] == label }.map { |row| row[/\A\w+ (.*)/, 1] }
+    rows[0..last_searched_row].find_all { |row| row.split[0] == label }.map { |row| row[/\A\w+ (.*)/, 1] }
   end
 
   def read_subject_rows(data)
@@ -160,14 +170,6 @@ class FileSystemGitRepository < GitRepository
     puts ">>> [WARNING] Missing subject in commit." if !empty_row_index
 
     empty_row_index && rows[empty_row_index+1..-1].join("\n")
-  end
-
-  def time_offset_for_commit(seconds)
-    sign = seconds < 0 ? '-' : '+'
-    hour   = seconds.abs / 3600
-    minute = (seconds.abs - hour * 3600) / 60
-
-    '%1s%02d%02d' % [sign, hour, minute]
   end
 
   def sha1_from_raw_content(raw_content)
