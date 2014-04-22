@@ -10,6 +10,7 @@ class GitRepository
   def_delegator :head_commit,                 :max_parents_count
   def_delegator :head_commit_with_blob_data,  :checkout!
   def_delegator :head_commit_with_blob_data,  :validate
+  def_delegator :head_commit_with_blob_data,  :clone_into
 
   def initialize(options = {})
     options = {
@@ -84,10 +85,6 @@ class GitRepository
 
   def branches
     raise NotImplementedError
-  end
-
-  def clone_into(target_repository, branch = 'master')
-    head_commit(load_blob_data: true).clone_into target_repository, branch
   end
 
   protected
