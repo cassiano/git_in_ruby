@@ -51,17 +51,14 @@ class FileSystemGitRepository < GitRepository
     # "U\314\201ltimas_Noti\314\201cias_das_Editorias_de_VEJA.com.html" (which uses "UTF-8"). For a real example check SHA1
     # a380c9bbea98259bd0f95162ab625c75e5636819 of project "veja-eleicoes-segundo-turno".
     entries_info = data.scan(/(\d+) ([^\0]+)\0([\x00-\xFF]{20})/).map do |mode, name, sha1|
-      [mode, name.as_utf8, sha1]
-    end
-
-    total_bytes = entries_info.inject(0) do |sum, (mode, name, _)|
-      sum + mode.size + name.bytesize + 22   # 22 = " ".size + "\0".size + sha1.size
+      [[mode, name.as_utf8, sha1], mode.size + name.bytesize]
     end
 
     # Check if data contains any additional non-processed bytes.
-    raise InvalidTreeData, 'The tree contains invalid data' if total_bytes != data.bytesize
+    total_bytes = entries_info.map(&:last).inject(:+) + 22 * entries_info.size    # 22 = " ".size + "\0".size + sha1.size
+    raise InvalidTreeData, "The tree contains invalid data (actual bytes: #{data.bytesize}, read bytes: #{total_bytes})" if total_bytes != data.bytesize
 
-    { entries_info: entries_info }
+    { entries_info: entries_info.map(&:first) }
   end
 
   def load_object(sha1)
