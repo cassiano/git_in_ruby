@@ -106,11 +106,10 @@ class FileSystemGitRepository < GitRepository
     data << "tree #{tree_sha1}\n"
     data << parents_sha1.map { |sha1| "parent #{sha1}\n" }.join
     data << "author #{author[0]} #{author[1].to_i} #{author[2]}\n"
+    data << "committer #{committer[0]} #{committer[1].to_i} #{committer[2]}\n"
 
-    if committer
-      data << "committer #{committer[0]} #{committer[1].to_i} #{committer[2]}\n"
-    end
-
+    # Although sounding a little strange, I have found some existing Git repositories that contain blank commit subjects (see SHA1
+    # 296fdc53bdd75147121aa290b4de0eeb3b4e7074 of the own Git source code repository for an example).
     if subject
       data << "\n"
       data << subject + "\n"
