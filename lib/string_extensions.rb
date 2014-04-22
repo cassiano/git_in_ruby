@@ -1,6 +1,6 @@
 class String
   def underscore
-    word = self.dup
+    word = dup
     word.gsub!(/::/, '/')
     word.gsub!(/([A-Z]+)([A-Z][a-z])/,'\1_\2')
     word.gsub!(/([a-z\d])([A-Z])/,'\1_\2')
@@ -18,11 +18,11 @@ class String
     encodings = %w(UTF-8 ISO-8859-1)
 
     encodings.find do |encoding|
-      self.dup.force_encoding(encoding).valid_encoding?
+      dup.force_encoding(encoding).valid_encoding?
     end
   end
 
   def as_utf8
-    self.force_encoding(find_valid_encoding).encode('UTF-8')
+    force_encoding(find_valid_encoding).encode 'UTF-8'
   end
 end

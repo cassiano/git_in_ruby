@@ -72,7 +72,7 @@ class Commit < GitObject
     parents_clones_sha1s = parents.map { |parent| parent.clone_into(target_repository, branch) }.sort
     tree_clone_sha1      = tree.clone_into(target_repository)
 
-    target_repository.create_commit! branch, tree_clone_sha1, parents_clones_sha1s, author, committer, subject, self.sha1
+    target_repository.create_commit! branch, tree_clone_sha1, parents_clones_sha1s, author, committer, subject, sha1
   end
 
   protected

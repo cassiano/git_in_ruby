@@ -12,6 +12,6 @@ class Blob < GitObject
   def clone_into(target_repository)
     puts ">>> Cloning blob #{sha1}"
 
-    target_repository.create_blob! data, self.sha1
+    target_repository.create_blob! data, sha1
   end
 end
