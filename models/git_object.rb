@@ -4,8 +4,8 @@ class GitObject
   attr_reader :repository, :sha1, :commit_level, :type, :size, :data, :content_sha1
 
   # http://stackoverflow.com/questions/737673/how-to-read-the-mode-field-of-git-ls-trees-output
-  # Note: given that fact that the VALID_MODES constant below contains references to (names of) subclasses, it violates the Open-Closed Principle.
-  # For more details: http://docs.google.com/a/cleancoder.com/viewer?a=v&pid=explorer&chrome=true&srcid=0BwhCYaYDn8EgN2M5MTkwM2EtNWFkZC00ZTI3LWFjZTUtNTFhZGZiYmUzODc1&hl=en
+  # A clear violation of the Open-Closed Principle (GitObjects should have no knowledge about Trees, Blobs etc).
+  # For more details: http://cl.ly/0i182e1C1A2k
   VALID_MODES = {
     '40000'  => 'Tree',
     '100644' => 'Blob',
