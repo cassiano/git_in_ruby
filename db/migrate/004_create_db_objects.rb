@@ -5,17 +5,17 @@ class CreateDbObjects < ActiveRecord::Migration
       t.column :type, :string, limit: 16, null: false      # DbBlob, DbTree or DbCommit.
       t.column :cloned_from_sha1, :string, limit: 40
 
-      # BLOBs.
+      # Blobs.
       t.column :blob_data, :longblob
 
-      # Trees (no more columns needed for trees).
+      # Trees (no specific columns needed!).
 
       # Commits.
       t.belongs_to  :commit_tree
-      t.column      :commit_author_name, :string
+      t.belongs_to  :commit_author
       t.column      :commit_author_date, :datetime
       t.column      :commit_author_date_gmt_offset, :string, limit: 5
-      t.column      :commit_committer_name, :string
+      t.belongs_to  :commit_committer
       t.column      :commit_committer_date, :datetime
       t.column      :commit_committer_date_gmt_offset, :string, limit: 5
       t.column      :commit_subject, :text
