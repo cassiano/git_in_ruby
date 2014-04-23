@@ -6,11 +6,13 @@ class GitRepository
 
   attr_reader :instances
 
-  def_delegator :head_commit,                 :commit_count
-  def_delegator :head_commit,                 :max_parents_count
-  def_delegator :head_commit_with_blob_data,  :checkout!
-  def_delegator :head_commit_with_blob_data,  :validate
-  def_delegator :head_commit_with_blob_data,  :clone_into
+  [:commit_count, :max_parents_count].each do |method|
+    def_delegator :head_commit, method
+  end
+
+  [:checkout!, :validate, :clone_into].each do |method|
+    def_delegator :head_commit_with_blob_data, method
+  end
 
   def initialize(options = {})
     options = {
