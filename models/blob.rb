@@ -8,6 +8,8 @@ class Blob < GitObject
 
     File.write destination_path, data
     File.chmod filemode, destination_path
+
+    nil
   end
 
   def clone_into(target_repository)

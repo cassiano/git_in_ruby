@@ -31,6 +31,8 @@ class Commit < GitObject
   def checkout!(destination_path = default_checkout_folder)
     FileUtils.mkpath destination_path
     tree.checkout! destination_path
+
+    nil
   end
 
   def changes_introduced_by

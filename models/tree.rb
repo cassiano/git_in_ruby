@@ -38,6 +38,8 @@ class Tree < GitObject
           raise "Unexpected type (#{entry.class}) for #{filename_or_path}..."
       end
     end
+
+    nil
   end
 
   def changes_between(other_trees, base_path = nil)
