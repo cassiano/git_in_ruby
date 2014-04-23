@@ -4,6 +4,8 @@ class Blob < GitObject
   end
 
   def checkout!(destination_path = default_checkout_folder)
+    raise "Blob cannot be checked out (blob data not loaded)." if !load_blob_data?
+
     filemode = { ExecutableFile => 0755, GroupWritableFile => 0664, Blob => 0644 }[self.class]
 
     File.write destination_path, data

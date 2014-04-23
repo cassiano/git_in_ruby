@@ -19,24 +19,18 @@ class Tree < GitObject
   end
 
   def checkout!(destination_path = default_checkout_folder)
+    raise "Tree cannot be checked out (blob data not loaded)." if !load_blob_data?
+
+    puts "Creating folder #{destination_path}"
+
+    FileUtils.mkpath destination_path
+
     entries.each do |name, entry|
       filename_or_path = destination_path ? File.join(destination_path, name) : name
 
       puts "Checking out #{filename_or_path}"
 
-      case entry
-        when SymLink, GitSubModule then
-          puts "Skipping #{filename_or_path}..."
-        when Blob then    # Blob, ExecutableFile or GroupWritableFile.
-          entry.checkout! filename_or_path
-        when Tree then
-          puts "Creating folder #{filename_or_path}"
-
-          FileUtils.mkpath filename_or_path
-          entry.checkout! filename_or_path
-        else
-          raise "Unexpected type (#{entry.class}) for #{filename_or_path}..."
-      end
+      entry.checkout! filename_or_path
     end
 
     nil

@@ -1,2 +1,2 @@
-class SymLink < Blob
+class SymLink < SkippedFile
 end

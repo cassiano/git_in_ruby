@@ -53,15 +53,19 @@ class GitObject
     raise NotImplementedError
   end
 
+  def checkout!(destination_path = default_checkout_folder)
+    raise NotImplementedError
+  end
+
   def self.mode_for_type(type)
     VALID_MODES.inject({}) { |acc, (mode, object_type)| acc.merge object_type.underscore.to_sym => mode }[type]
   end
 
+  protected
+
   def default_checkout_folder
     File.join 'checkout_files', sha1[0..6]
   end
-
-  protected
 
   def parse_data(data)
   end

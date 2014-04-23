@@ -1,4 +1,4 @@
-class GitSubModule < Blob
+class GitSubModule < SkippedFile
   def load
   end
 
