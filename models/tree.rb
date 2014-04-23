@@ -40,27 +40,23 @@ class Tree < GitObject
     entries.inject([]) do |changes, (name, entry)|
       filename_or_path = base_path ? File.join(base_path, name) : name
 
-      if [Tree, Blob, ExecutableFile, GroupWritableFile].include?(entry.class)
-        other_entries = other_trees.map { |tree| tree.entries[name] }.compact
+      other_entries = other_trees.map { |tree| tree.entries[name] }.compact
 
-        # For merge rules, check: http://thomasrast.ch/git/evil_merge.html
-        if other_entries.empty?
-          action = :created
-          sha1s  = [[], entry.sha1[0..6]]
-        elsif !other_entries.map(&:sha1).include?(entry.sha1)
-          action = :updated
-          sha1s  = [other_entries.map { |e| e.sha1[0..6] }.compact.uniq, entry.sha1[0..6]]
-        end
+      # For merge rules, check: http://thomasrast.ch/git/evil_merge.html
+      if other_entries.empty?
+        action = :created
+        sha1s  = [[], entry.sha1[0..6]]
+      elsif !other_entries.map(&:sha1).include?(entry.sha1)
+        action = :updated
+        sha1s  = [other_entries.map { |e| e.sha1[0..6] }.compact.uniq, entry.sha1[0..6]]
+      end
 
-        if action   # A nil action indicates an unchanged file.
-          if Tree === entry
-            changes.concat entry.changes_between(other_entries.find_all { |e| Tree === e }, filename_or_path)
-          else    # Blob or one of its subclasses.
-            changes << [filename_or_path, action, sha1s]
-          end
+      if action   # A nil action indicates an unchanged file.
+        if Tree === entry
+          changes.concat entry.changes_between(other_entries.find_all { |e| Tree === e }, filename_or_path)
+        else    # Blob or one of its subclasses.
+          changes << [filename_or_path, action, sha1s]
         end
-      else
-        puts "Skipping #{filename_or_path}..."
       end
 
       changes
