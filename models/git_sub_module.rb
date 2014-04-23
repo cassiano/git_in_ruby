@@ -3,5 +3,6 @@ class GitSubModule < Blob
   end
 
   def validate
+    true
   end
 end

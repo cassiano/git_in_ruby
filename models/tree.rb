@@ -14,6 +14,8 @@ class Tree < GitObject
 
   def validate_data
     entries.values.each &:validate
+
+    true
   end
 
   def checkout!(destination_path = default_checkout_folder)

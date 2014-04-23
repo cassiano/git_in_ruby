@@ -24,6 +24,8 @@ class Commit < GitObject
   def validate_data
     tree.validate
     parents.each &:validate
+
+    true
   end
 
   def checkout!(destination_path = default_checkout_folder)

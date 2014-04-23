@@ -1,5 +1,6 @@
 class Blob < GitObject
   def validate_data
+    true
   end
 
   def checkout!(destination_path = default_checkout_folder)
