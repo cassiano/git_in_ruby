@@ -6,7 +6,7 @@ class TestFsck < Test::Unit::TestCase
   context 'MemoryGitRepository' do
     context '#create_blob!, #create_tree! and #create_commit!' do
       setup do
-        @author_and_committer = ["Cassiano D'Andrea <cassiano.dandrea@tagview.com.br>", Time.now.utc, '-0300']
+        @developer = ["Cassiano D'Andrea <cassiano.dandrea@tagview.com.br>", Time.now.utc, '-0300']
       end
 
       test 'creates a valid commit object with no parent' do
@@ -23,7 +23,7 @@ class TestFsck < Test::Unit::TestCase
           [:tree, 'folder1',              tree1]
         ])
 
-        commit = repository.create_commit!('master', tree2, [], @author_and_committer, @author_and_committer, "1st commit")
+        commit = repository.create_commit!('master', tree2, [], @developer, @developer, "1st commit")
 
         head_commit = repository.head_commit(load_blob_data: true)
 
@@ -42,7 +42,7 @@ class TestFsck < Test::Unit::TestCase
   context 'RdbmsGitRepository' do
     context '#create_blob!, #create_tree! and #create_commit!' do
       setup do
-        @author_and_committer = ["Cassiano D'Andrea <cassiano.dandrea@tagview.com.br>", Time.now.utc, '-0300']
+        @developer = ["Cassiano D'Andrea <cassiano.dandrea@tagview.com.br>", Time.now.utc, '-0300']
       end
 
       test 'creates a valid commit object with no parent' do
@@ -59,7 +59,7 @@ class TestFsck < Test::Unit::TestCase
           [:tree, 'folder1',              tree1]
         ])
 
-        commit = repository.create_commit!('master', tree2, [], @author_and_committer, @author_and_committer, "1st commit")
+        commit = repository.create_commit!('master', tree2, [], @developer, @developer, "1st commit")
 
         head_commit = repository.head_commit(load_blob_data: true)
 

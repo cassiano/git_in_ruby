@@ -4,7 +4,7 @@ class CreateDbDevelopers < ActiveRecord::Migration
       t.column :name_and_email, :string, null: false
     end
 
-    # add_index :db_developers, :name_and_email, :unique => true
+    add_index :db_developers, :name_and_email, :unique => true
   end
 
   def self.down

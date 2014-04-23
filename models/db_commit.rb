@@ -29,7 +29,7 @@ class DbCommit < DbObject
   end
 
   def author=(new_author)
-    self.author_developer = DbDeveloper.find_or_initialize_by(name_and_email: new_author[0])
+    self.author_developer = DbDeveloper.find_or_create_by(name_and_email: new_author[0])
 
     self.author_date, self.author_date_gmt_offset = new_author[1..-1]
   end
@@ -40,7 +40,7 @@ class DbCommit < DbObject
   end
 
   def committer=(new_committer)
-    self.committer_developer = DbDeveloper.find_or_initialize_by(name_and_email: new_committer[0])
+    self.committer_developer = DbDeveloper.find_or_create_by(name_and_email: new_committer[0])
 
     self.committer_date, self.committer_date_gmt_offset = new_committer[1..-1]
   end
