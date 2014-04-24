@@ -2,17 +2,11 @@ require 'forwardable'
 
 class GitRepository
   extend Memoize
-  extend Forwardable
 
   attr_reader :instances
 
-  [:commit_count, :max_parents_count].each do |method|
-    def_delegator :head_commit, method
-  end
-
-  [:checkout!, :validate, :clone_into].each do |method|
-    def_delegator :head_commit_with_blob_data, method
-  end
+  delegate :commit_count, :max_parents_count,   to: :head_commit
+  delegate :checkout!, :validate, :clone_into,  to: :head_commit_with_blob_data
 
   def initialize(options = {})
     options = {
