@@ -109,7 +109,7 @@ class FileSystemGitRepository < GitRepository
     # 296fdc53bdd75147121aa290b4de0eeb3b4e7074 of the own Git source code repository for an example).
     if subject
       data << "\n"
-      data << subject + "\n"
+      data << subject
     end
   end
 
@@ -160,12 +160,11 @@ class FileSystemGitRepository < GitRepository
   end
 
   def read_subject_rows(data)
-    rows            = data.split("\n")
-    empty_row_index = rows.index('')
+    subject_index = data.index("\n\n") + 2    # 2 = "\n\n".size
 
-    puts ">>> [WARNING] Missing subject in commit." if !empty_row_index
+    puts ">>> [WARNING] Missing subject in commit." if !subject_index
 
-    empty_row_index && rows[empty_row_index+1..-1].join("\n")
+    subject_index && data[subject_index..-1]
   end
 
   def sha1_from_raw_content(raw_content)
