@@ -64,7 +64,11 @@ class Tree < GitObject
   end
 
   def clone_into(target_repository)
-    puts ">>> Cloning tree #{sha1}"
+    puts "(#{commit_level}) Cloning tree #{sha1}"
+
+    if (clone_sha1 = target_repository.find_cloned_git_object(sha1))
+      return clone_sha1
+    end
 
     entries_clones = entries.map do |name, git_object|
       [git_object.class.name.underscore.to_sym, name, git_object.clone_into(target_repository)]

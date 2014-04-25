@@ -16,7 +16,11 @@ class Blob < GitObject
   end
 
   def clone_into(target_repository)
-    puts ">>> Cloning blob #{sha1}"
+    puts "(#{commit_level}) Cloning blob #{sha1}"
+
+    if (clone_sha1 = target_repository.find_cloned_git_object(sha1))
+      return clone_sha1
+    end
 
     target_repository.create_blob! data, sha1
   end

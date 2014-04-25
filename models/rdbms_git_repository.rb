@@ -49,10 +49,6 @@ class RdbmsGitRepository < GitRepository
   end
 
   def create_commit_object!(tree, parents, author, committer, subject, cloned_from_sha1 = nil)
-    if cloned_from_sha1 && (commit = DbCommit.find_by_cloned_from_sha1(cloned_from_sha1))
-      return commit.sha1
-    end
-
     data = format_commit_data(tree, parents, author, committer, subject)
     sha1 = sha1_from_raw_content([:commit, data])
 
@@ -69,10 +65,6 @@ class RdbmsGitRepository < GitRepository
   end
 
   def create_tree_object!(entries, cloned_from_sha1 = nil)
-    if cloned_from_sha1 && (tree = DbTree.find_by_cloned_from_sha1(cloned_from_sha1))
-      return tree.sha1
-    end
-
     data = format_tree_data(entries)
     sha1 = sha1_from_raw_content([:tree, data])
 
@@ -91,10 +83,6 @@ class RdbmsGitRepository < GitRepository
   end
 
   def create_blob_object!(data, cloned_from_sha1 = nil)
-    if cloned_from_sha1 && (blob = DbBlob.find_by_cloned_from_sha1(cloned_from_sha1))
-      return blob.sha1
-    end
-
     sha1 = sha1_from_raw_content([:blob, data])
 
     DbBlob.create_with(
@@ -111,6 +99,10 @@ class RdbmsGitRepository < GitRepository
 
   def branch_names
     DbBranch.all.map(&:name)
+  end
+
+  def find_cloned_git_object(original_object_sha1)
+    (git_object = DbObject.find_by(cloned_from_sha1: original_object_sha1)) && git_object.sha1
   end
 
   private

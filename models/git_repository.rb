@@ -83,6 +83,9 @@ class GitRepository
     raise NotImplementedError
   end
 
+  def find_cloned_git_object(cloned_from_sha1)
+  end
+
   protected
 
   def create_commit_object!(tree_sha1, parents_sha1, author, committer, subject, cloned_from_sha1 = nil)
