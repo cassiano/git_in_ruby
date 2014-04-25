@@ -2,3 +2,4 @@
 /test/git_repositories
 .DS_Store
 __MACOSX
+*.log
