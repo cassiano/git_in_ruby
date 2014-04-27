@@ -13,7 +13,7 @@ class RdbmsGitRepository < GitRepository
     @dbconfig    = YAML::load(File.open('config/database.yml'))[environment]
 
     ActiveRecord::Base.establish_connection(@dbconfig)
-    ActiveRecord::Base.logger = Logger.new("log/#{@environment}.log")      # Logger.new(STDOUT)
+    ActiveRecord::Base.logger = Logger.new(options[:log_to] || "log/#{@environment}.log")
   end
 
   def head_commit_sha1
