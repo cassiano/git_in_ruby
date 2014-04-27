@@ -110,7 +110,7 @@ class RdbmsGitRepository < GitRepository
   def format_commit_data(tree, parents, author, committer, subject)
     [
       sha1_for(tree),
-      parents.map { |parent| sha1_for(parent) }.sort,
+      parents.map { |parent| sha1_for(parent) },
       author,
       committer,
       subject
@@ -124,7 +124,7 @@ class RdbmsGitRepository < GitRepository
         entry[1],
         sha1_for(entry[2])
       ]
-    }.sort_by { |entry| entry[1].downcase }
+    }
   end
 
   def sha1_from_raw_content(raw_content)

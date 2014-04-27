@@ -10,7 +10,7 @@ class DbCommit < DbObject
   belongs_to :committer_developer,  class_name: 'DbDeveloper',  foreign_key: :commit_committer_id
 
   has_and_belongs_to_many :parents,
-                          -> { order 'sha1' },
+                          -> { order :id },
                           class_name:               'DbCommit',
                           join_table:               :db_commit_parents,
                           foreign_key:              :commit_id,
@@ -19,7 +19,7 @@ class DbCommit < DbObject
   validates_presence_of :tree, :author, :author_date, :author_date_gmt_offset, :committer, :committer_date, :committer_date_gmt_offset
 
   def to_raw
-    [:commit, [tree.sha1, parents.map(&:sha1).sort, author, committer, subject]]
+    [:commit, [tree.sha1, parents.map(&:sha1), author, committer, subject]]
   end
 
   # Notice here we use the "Facade" design pattern, so users of our class won't notice we have actually splitted the Author into 2 disctinct
