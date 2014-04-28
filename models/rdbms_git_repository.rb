@@ -41,7 +41,7 @@ class RdbmsGitRepository < GitRepository
   end
 
   def load_object(sha1)
-    raise MissingObjectError, "Object not found!" unless (object = DbObject.find_by_sha1(sha1))
+    raise MissingObjectError, "Object not found!" unless (object = DbObject.find_by(sha1: sha1))
 
     raw_content = object.to_raw
 
@@ -132,7 +132,7 @@ class RdbmsGitRepository < GitRepository
   end
 
   def db_object_for(db_object_or_sha1)
-    DbObject === db_object_or_sha1 ? db_object_or_sha1 : DbObject.find_by_sha1(db_object_or_sha1)
+    DbObject === db_object_or_sha1 ? db_object_or_sha1 : DbObject.find_by(sha1: db_object_or_sha1)
   end
 
   def sha1_for(db_object_or_sha1)
