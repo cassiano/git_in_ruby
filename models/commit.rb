@@ -29,8 +29,6 @@ class Commit < GitObject
   end
 
   def checkout!(destination_path = default_checkout_folder)
-    raise "Commit cannot be checked out (blob data not loaded)." if !load_blob_data?
-
     FileUtils.mkpath destination_path
     tree.checkout! destination_path
 

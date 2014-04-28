@@ -18,6 +18,8 @@ class Blob < GitObject
   def clone_into(target_repository)
     puts "(#{commit_level}) Cloning blob #{sha1}"
 
+    raise "Blob cannot be cloned (blob data not loaded)." if !load_blob_data?
+
     if (clone_sha1 = target_repository.find_cloned_git_object(sha1))
       return clone_sha1
     end
