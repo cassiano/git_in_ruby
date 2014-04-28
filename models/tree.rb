@@ -19,8 +19,6 @@ class Tree < GitObject
   end
 
   def checkout!(destination_path = default_checkout_folder)
-    raise "Tree cannot be checked out (blob data not loaded)." if !load_blob_data?
-
     puts "Creating folder #{destination_path}"
 
     FileUtils.mkpath destination_path
