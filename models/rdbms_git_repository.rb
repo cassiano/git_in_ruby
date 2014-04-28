@@ -52,7 +52,7 @@ class RdbmsGitRepository < GitRepository
     data = format_commit_data(tree, parents, author, committer, subject)
     sha1 = sha1_from_raw_content([:commit, data])
 
-    DbCommit.create_with(
+    commit = DbCommit.create_with(
       tree:             db_object_for(data[0]),
       parents:          data[1].map { |parent| db_object_for(parent) },
       author:           data[2],
@@ -61,6 +61,8 @@ class RdbmsGitRepository < GitRepository
       cloned_from_sha1: cloned_from_sha1
     ).find_or_create_by(sha1: sha1)
 
+    raise "Error when creating DbCommit: #{commit.errors.full_messages}. Data: #{data.inspect}." if !commit.errors.blank?
+
     sha1
   end
 
@@ -68,7 +70,7 @@ class RdbmsGitRepository < GitRepository
     data = format_tree_data(entries)
     sha1 = sha1_from_raw_content([:tree, data])
 
-    DbTree.create_with(
+    tree = DbTree.create_with(
       entries: data.map do |entry|
         DbTreeEntry.new(
           mode:       entry[0],
@@ -79,16 +81,20 @@ class RdbmsGitRepository < GitRepository
       cloned_from_sha1: cloned_from_sha1
     ).find_or_create_by(sha1: sha1)
 
+    raise "Error when creating DbTree: #{tree.errors.full_messages}. Entries: #{entries.inspect}." if !tree.errors.blank?
+
     sha1
   end
 
   def create_blob_object!(data, cloned_from_sha1 = nil)
     sha1 = sha1_from_raw_content([:blob, data])
 
-    DbBlob.create_with(
+    blob = DbBlob.create_with(
       data:             Zlib::Deflate.deflate(data),
       cloned_from_sha1: cloned_from_sha1
     ).find_or_create_by(sha1: sha1)
+
+    raise "Error when creating DbBlob: #{blob.errors.full_messages}" if !blob.errors.blank?
 
     sha1
   end
