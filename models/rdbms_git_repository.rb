@@ -54,7 +54,13 @@ class RdbmsGitRepository < GitRepository
 
     commit = DbCommit.create_with(
       tree:             db_object_for(data[0]),
-      parents:          data[1].map { |parent| db_object_for(parent) },
+      parents:          data[1].map do |parent|
+        db_object_for(parent).tap do |parent_commit|
+          # Due to a (very weird) bug which seems to occur only when running with JRuby + JDBC, causing the parent's tree to be nil and
+          # as a result the whole commit object to be invalid, force the tree to be reloaded.
+          parent_commit.tree(:reload) if !parent_commit.tree
+        end
+      end,
       author:           data[2],
       committer:        data[3],
       subject:          data[4],
