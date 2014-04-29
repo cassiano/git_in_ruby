@@ -13,7 +13,7 @@ class MemoryGitRepository < GitRepository
   end
 
   def head_commit_sha1
-    if head =~ /\A\h{40}\Z/       # Is is a SHA1?
+    if head =~ /\A\h{40}\Z/ && !branches.has_key?(head)   # Head contains a SHA1 which does not represent a branch name?
       head
     else
       branches[head]
