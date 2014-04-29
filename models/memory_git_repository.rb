@@ -13,7 +13,11 @@ class MemoryGitRepository < GitRepository
   end
 
   def head_commit_sha1
-    branches[head]
+    if head =~ /\A\h{40}\Z/       # Is is a SHA1?
+      head
+    else
+      branches[head]
+    end
   end
 
   def parse_object(raw_content)

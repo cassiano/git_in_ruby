@@ -15,9 +15,11 @@ class FileSystemGitRepository < GitRepository
   end
 
   def head_commit_sha1
-    head_ref_path = File.read(File.join(git_path, 'HEAD')).chomp[/\Aref: (.*)/, 1]
-
-    File.read(File.join(git_path, head_ref_path)).chomp
+    if (head_ref = File.read(File.join(git_path, 'HEAD')).chomp) =~ /\A\h{40}\Z/       # Is is a SHA1?
+      head_ref
+    else
+      (head_ref_path = head_ref[/\Aref: (.*)/, 1]) && File.read(File.join(git_path, head_ref_path)).chomp
+    end
   end
 
   def parse_object(raw_content)
