@@ -73,9 +73,9 @@ class RdbmsGitRepository < GitRepository
     tree = DbTree.create_with(
       entries: data.map do |entry|
         DbTreeEntry.new(
-          mode:       entry[0],
-          name:       entry[1],
-          git_object: db_object_for(entry[2])
+          mode:             entry[0],
+          tree_entry_name:  DbTreeEntryName.find_or_create_by(name: entry[1]),
+          git_object:       db_object_for(entry[2])
         )
       end,
       cloned_from_sha1: cloned_from_sha1
