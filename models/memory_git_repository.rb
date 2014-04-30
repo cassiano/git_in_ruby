@@ -13,7 +13,11 @@ class MemoryGitRepository < GitRepository
   end
 
   def head_commit_sha1
-    branches[head]
+    if head =~ /\A\h{40}\Z/ && !branches.has_key?(head)   # Head contains a SHA1 which does not represent a branch name?
+      head
+    else
+      branches[head]
+    end
   end
 
   def parse_object(raw_content)
