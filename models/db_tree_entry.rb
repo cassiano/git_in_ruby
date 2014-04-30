@@ -1,6 +1,9 @@
 class DbTreeEntry < ActiveRecord::Base
-  validates_presence_of :mode, :name, :git_object    # Do not include :tree in this list!
+  validates_presence_of :mode, :tree_entry_name, :git_object    # Do not include :tree in this list!
 
-  belongs_to :tree,       class_name: 'DbTree'
-  belongs_to :git_object, class_name: 'DbObject'      # DbTree or DbBlob.
+  belongs_to :tree_entry_name,  class_name: 'DbTreeEntryName'
+  belongs_to :tree,             class_name: 'DbTree'
+  belongs_to :git_object,       class_name: 'DbObject'      # DbTree or DbBlob.
+
+  delegate :name, to: :tree_entry_name
 end
