@@ -67,7 +67,7 @@ class Commit < GitObject
   end
 
   def max_parents_count
-    [parents.size].concat(parents.map(&:max_parents_count)).max
+    [{ sha1: sha1, count: parents.count }].concat(parents.map(&:max_parents_count)).max { |a, b| a[:count] <=> b[:count] }
   end
 
   def clone_into(target_repository, branch = 'master')
