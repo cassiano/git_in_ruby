@@ -86,6 +86,7 @@ class GitRepository
   def find_cloned_git_object(cloned_from_sha1)
   end
 
+  # Shows (very) poor performance for large repositories (e.g. Git source, with 36170+ commits).
   def commit_count
     head_commit ? 1 + head_commit.ancestor_sha1s.size : 0
   end

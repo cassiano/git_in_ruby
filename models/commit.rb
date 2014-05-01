@@ -58,7 +58,7 @@ class Commit < GitObject
   end
 
   def ancestor_sha1s
-    parents.map { |parent| [parent.sha1].concat(parent.ancestor_sha1s) }.flatten.uniq
+    parents.map { |parent| [parent.sha1[0..6]].concat(parent.ancestor_sha1s) }.flatten.uniq
   end
 
   def max_parents_count
