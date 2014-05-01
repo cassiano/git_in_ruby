@@ -2,6 +2,7 @@ require 'yaml'
 require 'logger'
 require 'zlib'
 require 'json'
+require 'fileutils'
 
 class RdbmsGitRepository < GitRepository
   attr_reader :environment, :dbconfig
@@ -13,7 +14,10 @@ class RdbmsGitRepository < GitRepository
     @dbconfig    = YAML::load(File.open('config/database.yml'))[environment]
 
     ActiveRecord::Base.establish_connection(@dbconfig)
-    ActiveRecord::Base.logger = Logger.new(options[:log_to] || "log/#{@environment}.log")
+
+    default_log_file = File.join('log', "#{@environment}.log")
+    FileUtils.rm(default_log_file, force: true) if !options[:log_to]
+    ActiveRecord::Base.logger = Logger.new(options[:log_to] || default_log_file)
   end
 
   def head_commit_sha1
