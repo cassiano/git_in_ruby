@@ -150,7 +150,6 @@ class FileSystemGitRepository < GitRepository
     rows[0]
   end
 
-  # Fix bug found in SHA1 452ce291a99131768e2d61d2dcf8a4a1b78d39a3 of the Git source repo.
   def read_commit_data_rows(data, label)
     rows = data.split("\n")
 
