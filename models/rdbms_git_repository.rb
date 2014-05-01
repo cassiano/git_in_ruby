@@ -138,7 +138,7 @@ class RdbmsGitRepository < GitRepository
   end
 
   def db_object_for(db_object_or_sha1)
-    DbObject === db_object_or_sha1 ? db_object_or_sha1 : DbObject.find_by(sha1: db_object_or_sha1)
+    DbObject === db_object_or_sha1 ? db_object_or_sha1 : DbObject.find_by!(sha1: db_object_or_sha1)
   end
 
   def sha1_for(db_object_or_sha1)
