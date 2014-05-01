@@ -57,13 +57,8 @@ class Commit < GitObject
     }
   end
 
-  # TODO: implement a better algorithm. This one incorrectly returns 0 for already calculated commits.
-  def commit_count
-    return 0 if @counted
-
-    @counted = true
-
-    1 + parents.map(&:commit_count).inject(0, :+)
+  def ancestor_sha1s
+    parents.map { |parent| [parent.sha1].concat(parent.ancestor_sha1s) }.flatten.uniq
   end
 
   def max_parents_count
@@ -95,5 +90,5 @@ class Commit < GitObject
     @subject      = parsed_data[:subject]
   end
 
-  remember :tree, :parents, :max_parents_count, :clone_into
+  remember :tree, :parents, :max_parents_count, :clone_into, :ancestor_sha1s
 end

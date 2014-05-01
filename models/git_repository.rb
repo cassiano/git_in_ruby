@@ -5,7 +5,7 @@ class GitRepository
 
   attr_reader :instances
 
-  delegate :commit_count, :max_parents_count,   to: :head_commit
+  delegate :max_parents_count,                  to: :head_commit
   delegate :checkout!, :validate, :clone_into,  to: :head_commit_with_blob_data
 
   def initialize(options = {})
@@ -84,6 +84,10 @@ class GitRepository
   end
 
   def find_cloned_git_object(cloned_from_sha1)
+  end
+
+  def commit_count
+    head_commit ? 1 + head_commit.ancestor_sha1s.size : 0
   end
 
   protected
