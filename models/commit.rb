@@ -78,17 +78,33 @@ class Commit < GitObject
   #   parents.map { |parent| [parent.sha1[0..6]].concat(parent.ancestor_sha1s) }.flatten.uniq
   # end
 
-  def ancestor_count
-    @ancestors_already_counted = true
+  def ancestor_count(memoize = true)
+    return @ancestor_count if @ancestor_count
 
-    parents.map(&:_ancestor_count).inject(0, :+)
+    puts "ancestor_count() called for #{sha1[0..6]}"
+
+    count = parents.each_with_index.map { |parent, i|
+      if i == 0
+        parent.ancestor_count(memoize)
+      else
+        parent._ancestor_count(false)
+      end
+    }.inject(0, :+)
+
+    if memoize
+      puts "Memoizing result for #{sha1[0..6]} (count = #{count})"
+
+      @ancestor_count = count
+    end
+
+    count
   end
 
-  def _ancestor_count
-    if @ancestors_already_counted
+  def _ancestor_count(memoize = true)
+    if @ancestor_count
       0
     else
-      1 + ancestor_count
+      ancestor_count(memoize)
     end
   end
 
@@ -104,5 +120,5 @@ class Commit < GitObject
     @subject      = parsed_data[:subject]
   end
 
-  remember :tree, :parents, :max_parents_count, :clone_into, :ancestor_count
+  remember :tree, :parents, :max_parents_count, :clone_into
 end
