@@ -57,14 +57,6 @@ class Commit < GitObject
     }
   end
 
-  def ancestor_sha1s
-    parents.map { |parent| [parent.sha1[0..6]].concat(parent.ancestor_sha1s) }.flatten.uniq
-  end
-
-  def max_parents_count
-    [{ sha1: sha1, count: parents.count }].concat(parents.map(&:max_parents_count)).max { |a, b| a[:count] <=> b[:count] }
-  end
-
   def clone_into(target_repository, branch = 'master')
     puts "(#{commit_level}) Cloning commit #{sha1}"
 
@@ -76,6 +68,28 @@ class Commit < GitObject
     tree_clone_sha1      = tree.clone_into(target_repository)
 
     target_repository.create_commit! branch, tree_clone_sha1, parents_clones_sha1s, author, committer, subject, sha1
+  end
+
+  def max_parents_count
+    [{ sha1: sha1, count: parents.count }].concat(parents.map(&:max_parents_count)).max { |a, b| a[:count] <=> b[:count] }
+  end
+
+  # def ancestor_sha1s
+  #   parents.map { |parent| [parent.sha1[0..6]].concat(parent.ancestor_sha1s) }.flatten.uniq
+  # end
+
+  def ancestor_count
+    @ancestors_already_counted = true
+
+    parents.map(&:_ancestor_count).inject(0, :+)
+  end
+
+  def _ancestor_count
+    if @ancestors_already_counted
+      0
+    else
+      1 + ancestor_count
+    end
   end
 
   protected
@@ -90,5 +104,5 @@ class Commit < GitObject
     @subject      = parsed_data[:subject]
   end
 
-  remember :tree, :parents, :max_parents_count, :clone_into, :ancestor_sha1s
+  remember :tree, :parents, :max_parents_count, :clone_into, :ancestor_count
 end
