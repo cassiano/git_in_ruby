@@ -79,20 +79,22 @@ class Commit < GitObject
   # end
 
   def ancestor_count(memoize = true)
-    return @ancestor_count if @ancestor_count
+    return ancestor_count_value if ancestor_count_value
 
-    puts "ancestor_count() called for #{sha1[0..6]}"
+    puts "ancestor_count() called for '#{subject.chop}'"
 
     count = parents.each_with_index.map { |parent, i|
-      if i == 0
+      if i == 0 && memoize
         parent.ancestor_count(memoize)
       else
         parent._ancestor_count(false)
       end
-    }.inject(0, :+)
+    }.inject(0, :+) + (memoize ? parents.size : 0)
+
+    puts "count for '#{subject.chop}': #{count}"
 
     if memoize
-      puts "Memoizing result for #{sha1[0..6]} (count = #{count})"
+      puts "Memoizing result for '#{subject.chop}'"
 
       @ancestor_count = count
     end
@@ -101,11 +103,15 @@ class Commit < GitObject
   end
 
   def _ancestor_count(memoize = true)
-    if @ancestor_count
+    if ancestor_count_value
       0
     else
       ancestor_count(memoize)
     end
+  end
+
+  def ancestor_count_value
+    @ancestor_count
   end
 
   protected
