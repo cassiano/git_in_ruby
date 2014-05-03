@@ -74,22 +74,8 @@ class Commit < GitObject
     [{ sha1: sha1, count: parents.count }].concat(parents.map(&:max_parents_count)).max { |a, b| a[:count] <=> b[:count] }
   end
 
-  # def ancestor_sha1s
-  #   parents.map { |parent| [parent.sha1[0..6]].concat(parent.ancestor_sha1s) }.flatten.uniq
-  # end
-
-  def ancestor_count
-    @ancestors_already_counted = true
-
-    parents.map(&:_ancestor_count).inject(0, :+)
-  end
-
-  def _ancestor_count
-    if @ancestors_already_counted
-      0
-    else
-      1 + ancestor_count
-    end
+  def ancestor_sha1s
+    parents.map { |parent| [parent.sha1[0..6]].concat(parent.ancestor_sha1s) }.flatten.uniq
   end
 
   protected
@@ -104,5 +90,5 @@ class Commit < GitObject
     @subject      = parsed_data[:subject]
   end
 
-  remember :tree, :parents, :max_parents_count, :clone_into, :ancestor_count
+  remember :tree, :parents, :clone_into, :max_parents_count, :ancestor_sha1s
 end
