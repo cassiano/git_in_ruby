@@ -74,14 +74,15 @@ class Commit < GitObject
     [{ sha1: sha1, count: parents.count }].concat(parents.map(&:max_parents_count)).max { |a, b| a[:count] <=> b[:count] }
   end
 
-  # def ancestor_sha1s
-  #   parents.map { |parent| [parent.sha1[0..6]].concat(parent.ancestor_sha1s) }.flatten.uniq
-  # end
+  def ancestor_sha1s
+    parents.map { |parent| [parent.sha1[0..6]].concat(parent.ancestor_sha1s) }.flatten.uniq
+  end
 
   def ancestor_count(memoize = true)
     return ancestor_count_value if ancestor_count_value
 
-    puts "ancestor_count() called for '#{subject.chop}'"
+    # puts "ancestor_count() called for '#{subject.chop}'"
+    # puts "ancestor_count() called for '#{sha1[0..2]}'"
 
     count = parents.each_with_index.map { |parent, i|
       if i == 0 && memoize
@@ -91,10 +92,12 @@ class Commit < GitObject
       end
     }.inject(0, :+) + (memoize ? parents.size : 0)
 
-    puts "count for '#{subject.chop}': #{count}"
+    # puts "count for '#{subject.chop}': #{count}"
+    # puts "count for '#{sha1[0..2]}': #{count}"
 
     if memoize
-      puts "Memoizing result for '#{subject.chop}'"
+      # puts "Memoizing result for '#{subject.chop}'"
+      # puts "Memoizing result for '#{sha1[0..2]}'"
 
       @ancestor_count = count
     end
@@ -126,5 +129,5 @@ class Commit < GitObject
     @subject      = parsed_data[:subject]
   end
 
-  remember :tree, :parents, :max_parents_count, :clone_into
+  remember :tree, :parents, :max_parents_count, :clone_into, :ancestor_sha1s
 end
