@@ -76,8 +76,29 @@ class Commit < GitObject
 
   # PS: shows poor performance and uses excessive heap space for large repositories (e.g. for the Git source ode, with 36170+ commits, it took
   # 278 seconds in my Macbook).
+  # def commit_count
+  #   1 + ancestor_sha1s.size
+  # end
+
   def commit_count
-    1 + ancestor_sha1s.size
+    stack   = []
+    visited = []
+    count   = 0
+
+    stack.push self
+
+    while !stack.empty? do
+      current = stack.pop
+
+      visited << current
+      count += 1
+
+      current.parents.each do |parent|
+        stack.push(parent) if !visited.include?(parent)
+      end
+    end
+
+    count
   end
 
   def ancestor_sha1s
