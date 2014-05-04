@@ -71,11 +71,17 @@ class Commit < GitObject
   end
 
   def max_parents_count
-    [{ sha1: sha1, count: parents.count }].concat(parents.map(&:max_parents_count)).max { |a, b| a[:count] <=> b[:count] }
+    ([{ sha1: sha1, count: parents.count }] + parents.map(&:max_parents_count)).max { |a, b| a[:count] <=> b[:count] }
+  end
+
+  # PS: shows poor performance and uses excessive heap space for large repositories (e.g. for the Git source ode, with 36170+ commits, it took
+  # 278 seconds in my Macbook).
+  def commit_count
+    1 + ancestor_sha1s.size
   end
 
   def ancestor_sha1s
-    parents.map { |parent| [parent.sha1[0..6]].concat(parent.ancestor_sha1s) }.flatten.uniq
+    parents.inject([]) { |acc, parent| acc + [parent.sha1[0..8]] + parent.ancestor_sha1s }.uniq
   end
 
   protected
@@ -90,5 +96,5 @@ class Commit < GitObject
     @subject      = parsed_data[:subject]
   end
 
-  remember :tree, :parents, :clone_into, :max_parents_count, :ancestor_sha1s
+  remember :tree, :parents, :clone_into, :max_parents_count, :commit_count, :ancestor_sha1s
 end
