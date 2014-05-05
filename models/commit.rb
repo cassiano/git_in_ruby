@@ -74,35 +74,38 @@ class Commit < GitObject
     ([{ sha1: sha1, count: parents.count }] + parents.map(&:max_parents_count)).max { |a, b| a[:count] <=> b[:count] }
   end
 
-  # PS: shows poor performance and uses excessive heap space for large repositories (e.g. for the Git source ode, with 36170+ commits, it took
-  # 278 seconds in my Macbook).
-  # def commit_count
-  #   1 + ancestor_sha1s.size
-  # end
-
+  # Non-recursive (iterative) version, which generally shows very good performance (e.g. for the Git source code, with
+  # 36170+ commits, it took only 11.5 seconds in my Macbook).
   def commit_count
-    stack   = []
-    visited = []
-    count   = 0
+    visit_queue = []
+    visited     = {}    # Why haven't I used an ordinary array for this as well? Because hashes proved to be more
+                        # than 3000 times faster for searches (in average) for 37000 elements.
+                        # See: https://gist.github.com/cassiano/c61bf6d553cc0bea15fe
 
-    stack.push self
+    # Start scheduling a visit for the node pointed to by 'self'.
+    visit_queue.push self
 
-    while !stack.empty? do
-      current = stack.pop
+    # Repeat while there are still nodes to be visited.
+    while !visit_queue.empty? do
+      current = visit_queue.shift
 
-      visited << current
-      count += 1
+      # puts "Visiting #{current.sha1[0..2]}"
 
+      # Mark the current node as "visited".
+      visited[current] = true
+
+      # Schedule a visit for each of the current node's parent.
       current.parents.each do |parent|
-        stack.push(parent) if !visited.include?(parent)
+        # But do it only if node has not yet been visited nor already marked for visit (in the visit queue).
+        if !(visited.has_key?(parent) || visit_queue.include?(parent))
+          # puts "Pushing #{parent.sha1[0..2]} onto the visit queue"
+
+          visit_queue.push parent
+        end
       end
     end
 
-    count
-  end
-
-  def ancestor_sha1s
-    parents.inject([]) { |acc, parent| acc + [parent.sha1[0..8]] + parent.ancestor_sha1s }.uniq
+    visited.count
   end
 
   protected
@@ -117,5 +120,5 @@ class Commit < GitObject
     @subject      = parsed_data[:subject]
   end
 
-  remember :tree, :parents, :clone_into, :max_parents_count, :commit_count, :ancestor_sha1s
+  remember :tree, :parents, :clone_into, :max_parents_count, :commit_count
 end
