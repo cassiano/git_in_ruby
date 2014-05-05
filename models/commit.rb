@@ -75,7 +75,7 @@ class Commit < GitObject
   end
 
   # Non-recursive (iterative) version, which generally shows very good performance (e.g. for the Git source code, with
-  # 36170+ commits, it took only 11.5 seconds in my Macbook).
+  # 36170+ commits, it took only 12 seconds in my Macbook).
   def commit_count
     visit_queue = []
     visited     = {}    # Why haven't I used an ordinary array for this as well? Because hashes proved to be more
@@ -95,9 +95,7 @@ class Commit < GitObject
       # Schedule a visit for each of the current node's parent.
       current.parents.each do |parent|
         # But do it only if node has not yet been visited nor already marked for visit (in the visit queue).
-        if !(visited.has_key?(parent) || visit_queue.include?(parent))
-          visit_queue.push parent
-        end
+        visit_queue.push(parent) unless visited.has_key?(parent) || visit_queue.include?(parent)
       end
     end
 
