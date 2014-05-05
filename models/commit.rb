@@ -102,6 +102,48 @@ class Commit < GitObject
     visited.count
   end
 
+  def visit_tree(&block)
+    visit_queue = []
+    visited     = {}
+
+    visit_queue.push self
+
+    while !visit_queue.empty? do
+      current = visit_queue.shift
+
+      result = block.call(current)
+
+      visited[current.sha1] = result
+
+      current.parents.each do |parent|
+        visit_queue.push(parent) unless visited.has_key?(parent.sha1) || visit_queue.include?(parent)
+      end
+    end
+
+    visited
+  end
+
+  # r1 = FileSystemGitRepository.new project_path: 'test/git_repositories/valid_with_merge'
+  # r2 = RdbmsGitRepository.new
+  #
+  # branch = 'master'
+  # target_repository = r1
+  #
+  # result = r1.head_commit(load_blob_data: true).visit_tree do |c|
+  #   puts "(#{c.commit_level}) Cloning commit #{c.sha1}"
+  #
+  #   if (clone_sha1 = target_repository.find_cloned_git_object(c.sha1))
+  #     return clone_sha1
+  #   end
+  #
+  #   parents_clones_sha1s = c.parents.map { |parent| parent.clone_into(target_repository, branch) }
+  #   tree_clone_sha1      = c.tree.clone_into(target_repository)
+  #
+  #   target_repository.create_commit! branch, tree_clone_sha1, parents_clones_sha1s, c.author, c.committer, c.subject, c.sha1
+  # end
+  #
+  # result = r1.head_commit(load_blob_data: true).visit_tree(&:validate)
+
   protected
 
   def parse_data(data)
