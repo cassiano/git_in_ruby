@@ -89,8 +89,6 @@ class Commit < GitObject
     while !visit_queue.empty? do
       current = visit_queue.shift
 
-      # puts "Visiting #{current.sha1[0..2]}"
-
       # Mark the current node as "visited".
       visited[current] = true
 
@@ -98,8 +96,6 @@ class Commit < GitObject
       current.parents.each do |parent|
         # But do it only if node has not yet been visited nor already marked for visit (in the visit queue).
         if !(visited.has_key?(parent) || visit_queue.include?(parent))
-          # puts "Pushing #{parent.sha1[0..2]} onto the visit queue"
-
           visit_queue.push parent
         end
       end
