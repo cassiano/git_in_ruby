@@ -1,7 +1,7 @@
 class AssertionError < RuntimeError
 end
 
-def assert(&block)
+def assert
   raise AssertionError unless yield
 end
 
@@ -106,7 +106,7 @@ class Commit < GitObject
   def max_parents_count
     { sha1: nil, count: -1 }.tap do |max|
       visit_ancestors do |commit, index|
-        puts index if index % 1000 == 0
+        puts "[#{index}] Max so far: #{max[:count]} (#{max[:sha1]})" if index % 1000 == 0
 
         if (count = commit.parents.count) > max[:count]
           max[:sha1]  = commit.sha1
