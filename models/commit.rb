@@ -12,21 +12,21 @@ class Commit < GitObject
   end
 
   def parent
-    if parents.size == 0
+    if parents.count == 0
       nil
-    elsif parents.size == 1
+    elsif parents.count == 1
       parents[0]
     else
       raise "More than one parent commit found."
     end
   end
 
-  def validate_data
-    tree.validate
-    parents.each &:validate
-
-    true
-  end
+  # def validate_data
+  #   tree.validate
+  #   parents.each &:validate
+  #
+  #   true
+  # end
 
   def checkout!(destination_path = default_checkout_folder)
     FileUtils.mkpath destination_path
@@ -70,79 +70,62 @@ class Commit < GitObject
     target_repository.create_commit! branch, tree_clone_sha1, parents_clones_sha1s, author, committer, subject, sha1
   end
 
-  def max_parents_count
-    ([{ sha1: sha1, count: parents.count }] + parents.map(&:max_parents_count)).max { |a, b| a[:count] <=> b[:count] }
+  # def max_parents_count
+  #   ([{ sha1: sha1, count: parents.count }] + parents.map(&:max_parents_count)).max { |a, b| a[:count] <=> b[:count] }
+  # end
+
+  ########################
+  # Non-recursive methods.
+  ########################
+
+  def validate_full_commit_history
+    visit_ancestors &:validate
+
+    true
   end
 
-  # Non-recursive (iterative) version, which generally shows very good performance (e.g. for the Git source code, with
-  # 36170+ commits, it took only 12 seconds in my Macbook).
+  def validate_data
+    tree.validate
+  end
+
   def commit_count
-    visit_queue = []
-    visited     = {}    # Why haven't I used an ordinary array for this as well? Because hashes proved to be more
-                        # than 3000 times faster for searches (in average) for 37000 elements.
-                        # See: https://gist.github.com/cassiano/c61bf6d553cc0bea15fe
-
-    # Start scheduling a visit for the node pointed to by 'self'.
-    visit_queue.push self
-
-    # Repeat while there are still nodes to be visited.
-    while !visit_queue.empty? do
-      current = visit_queue.shift
-
-      # Mark the current node as "visited".
-      visited[current] = true
-
-      # Schedule a visit for each of the current node's parent.
-      current.parents.each do |parent|
-        # But do it only if node has not yet been visited nor already marked for visit (in the visit queue).
-        visit_queue.push(parent) unless visited.has_key?(parent) || visit_queue.include?(parent)
-      end
-    end
-
-    visited.count
+    visit_ancestors.count
   end
 
-  def visit_tree(&block)
-    visit_queue = []
-    visited     = {}
+  def max_parents_count
+    { sha1: nil, count: -1 }.tap do |max|
+      visit_ancestors do |commit, index|
+        puts index if index % 500 == 0
 
-    visit_queue.push self
-
-    while !visit_queue.empty? do
-      current = visit_queue.shift
-
-      result = block.call(current)
-
-      visited[current.sha1] = result
-
-      current.parents.each do |parent|
-        visit_queue.push(parent) unless visited.has_key?(parent.sha1) || visit_queue.include?(parent)
+        if (count = commit.parents.count) > max[:count]
+          max[:sha1]  = commit.sha1
+          max[:count] = count
+        end
       end
     end
-
-    visited
   end
 
-  # r1 = FileSystemGitRepository.new project_path: 'test/git_repositories/valid_with_merge'
-  # r2 = RdbmsGitRepository.new
+  # def clone_into(target_repository, branch = 'master')
+  #   results = visit_ancestors do |commit|
+  #     puts "(#{commit.commit_level}) Cloning commit #{commit.sha1}"
   #
-  # branch = 'master'
-  # target_repository = r1
-  #
-  # result = r1.head_commit(load_blob_data: true).visit_tree do |c|
-  #   puts "(#{c.commit_level}) Cloning commit #{c.sha1}"
-  #
-  #   if (clone_sha1 = target_repository.find_cloned_git_object(c.sha1))
-  #     return clone_sha1
+  #     if (clone_sha1 = target_repository.find_cloned_git_object(commit.sha1))
+  #       { type: :commit, sha1: clone_sha1 }
+  #     else
+  #       { type: :tree, sha1: commit.tree.clone_into(target_repository) }
+  #     end
   #   end
   #
-  #   parents_clones_sha1s = c.parents.map { |parent| parent.clone_into(target_repository, branch) }
-  #   tree_clone_sha1      = c.tree.clone_into(target_repository)
+  #   results.each do |commit_sha1, data|
+  #     commit = Commit.find_or_initialize_by_sha1 repository, commit_sha1
   #
-  #   target_repository.create_commit! branch, tree_clone_sha1, parents_clones_sha1s, c.author, c.committer, c.subject, c.sha1
+  #     if data[:type] == :tree
+  #       parents_clones_sha1s = commit.parents.map { |parent| results[parent.sha1] }
+  #
+  #       target_repository.create_commit! branch, data[:sha1], parents_clones_sha1s, commit.author, commit.committer, commmit.subject, commit_sha1
+  #     end
+  #   end
   # end
-  #
-  # result = r1.head_commit(load_blob_data: true).visit_tree(&:validate)
 
   protected
 
@@ -154,6 +137,38 @@ class Commit < GitObject
     @author       = parsed_data[:author]
     @committer    = parsed_data[:committer]
     @subject      = parsed_data[:subject]
+  end
+
+  # Visits all commit ancestors, starting by itself.
+  def visit_ancestors(&block)
+    index       = 0
+    visit_queue = []
+    visited     = {}    # Why haven't I used an ordinary array for this as well? Because hashes have proved to be more than 3000
+                        # times faster for searches (in average) for 37000 elements (# of commits of the Git source repository).
+                        # See: https://gist.github.com/cassiano/c61bf6d553cc0bea15fe
+
+    # Start scheduling a visit for the node pointed to by 'self'.
+    visit_queue.push self
+
+    # Repeat while there are still nodes to be visited.
+    while !visit_queue.empty? do
+      current = visit_queue.shift
+
+      # If any block supplied, visit the node.
+      result = yield(current, index) if block_given?
+
+      visited[current.sha1] = result
+
+      # Schedule a visit for each of the current node's parent.
+      current.parents.each do |parent|
+        # But do it only if node has not yet been visited nor already marked for visit (in the visit queue).
+        visit_queue.push(parent) unless visited.has_key?(parent.sha1) || visit_queue.include?(parent)
+      end
+
+      index += 1
+    end
+
+    visited
   end
 
   remember :tree, :parents, :clone_into, :max_parents_count, :commit_count

@@ -5,8 +5,8 @@ class GitRepository
 
   attr_reader :instances
 
-  delegate :max_parents_count, :commit_count,   to: :head_commit
-  delegate :checkout!, :validate, :clone_into,  to: :head_commit_with_blob_data
+  delegate :max_parents_count, :commit_count,                                 to: :head_commit
+  delegate :checkout!, :validate, :clone_into, :validate_full_commit_history, to: :head_commit_with_blob_data
 
   def initialize(options = {})
     options = {

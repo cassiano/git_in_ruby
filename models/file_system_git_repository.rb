@@ -141,9 +141,9 @@ class FileSystemGitRepository < GitRepository
   def read_commit_data_row(data, label, required = true)
     rows = read_commit_data_rows(data, label)
 
-    if rows.size == 0 && required
+    if rows.count == 0 && required
       raise MissingCommitDataError, "Missing #{label} in commit."
-    elsif rows.size > 1
+    elsif rows.count > 1
       raise ExcessiveCommitDataError, "Excessive #{label} rows in commit."
     end
 
