@@ -1,3 +1,10 @@
+class AssertionError < RuntimeError
+end
+
+def assert(&block)
+  raise AssertionError unless yield
+end
+
 class Commit < GitObject
   attr_reader :tree_sha1, :parents_sha1, :subject, :author, :committer
 
@@ -74,12 +81,16 @@ class Commit < GitObject
   #   ([{ sha1: sha1, count: parents.count }] + parents.map(&:max_parents_count)).max { |a, b| a[:count] <=> b[:count] }
   # end
 
-  ########################
-  # Non-recursive methods.
-  ########################
+  #########################
+  # Non-recursive versions.
+  #########################
 
   def validate_ancestors
-    visit_ancestors &:validate
+    visit_ancestors do |commit, index|
+      puts index if index % 100 == 0
+
+      commit.validate
+    end
 
     true
   end
@@ -94,7 +105,9 @@ class Commit < GitObject
 
   def max_parents_count
     { sha1: nil, count: -1 }.tap do |max|
-      visit_ancestors do |commit|
+      visit_ancestors do |commit, index|
+        puts index if index % 1000 == 0
+
         if (count = commit.parents.count) > max[:count]
           max[:sha1]  = commit.sha1
           max[:count] = count
@@ -103,27 +116,54 @@ class Commit < GitObject
     end
   end
 
-  # def clone_into(target_repository, branch = 'master')
-  #   results = visit_ancestors do |commit|
-  #     puts "(#{commit.commit_level}) Cloning commit #{commit.sha1}"
-  #
-  #     if (clone_sha1 = target_repository.find_cloned_git_object(commit.sha1))
-  #       { type: :commit, sha1: clone_sha1 }
-  #     else
-  #       { type: :tree, sha1: commit.tree.clone_into(target_repository) }
-  #     end
-  #   end
-  #
-  #   results.each do |commit_sha1, data|
-  #     commit = Commit.find_or_initialize_by_sha1 repository, commit_sha1
-  #
-  #     if data[:type] == :tree
-  #       parents_clones_sha1s = commit.parents.map { |parent| results[parent.sha1] }
-  #
-  #       target_repository.create_commit! branch, data[:sha1], parents_clones_sha1s, commit.author, commit.committer, commmit.subject, commit_sha1
-  #     end
-  #   end
-  # end
+  def clone_into(target_repository, branch = 'master')
+    cloned_commits_and_trees = visit_ancestors do |commit|
+      puts "(#{commit.commit_level}) Cloning commit #{commit.sha1}"
+
+      if (clone_sha1 = target_repository.find_cloned_git_object(commit.sha1))
+        { type: :commit, sha1: clone_sha1 }
+      else
+        { type: :tree, sha1: commit.tree.clone_into(target_repository) }
+      end
+    end
+
+    while !(cloned_trees = cloned_commits_and_trees.find_all { |_, data| data[:type] == :tree }).empty? do
+      next_commit_to_clone = nil
+
+      cloned_trees.reverse.each do |commit_sha1, data|
+        # Find a commit (any) whose parents have already been cloned.
+        next_commit_to_clone = Commit.find_or_initialize_by_sha1(repository, commit_sha1)
+
+        parents_cloned = next_commit_to_clone.parents.all? do |parent|
+          cloned_commits_and_trees[parent.sha1][:type] == :commit
+        end
+
+        break if parents_cloned
+      end
+
+      break if !next_commit_to_clone
+
+      cloned_commit_sha1 = target_repository.create_commit!(
+        branch,
+        cloned_commits_and_trees[next_commit_to_clone.sha1][:sha1],
+        next_commit_to_clone.parents.map do |parent|
+          assert { cloned_commits_and_trees[parent.sha1][:type] == :commit }
+
+          cloned_commits_and_trees[parent.sha1][:sha1]
+        end,
+        next_commit_to_clone.author,
+        next_commit_to_clone.committer,
+        next_commit_to_clone.subject,
+        next_commit_to_clone.sha1
+      )
+
+      cloned_commits_and_trees[next_commit_to_clone.sha1] = { type: :commit, sha1: cloned_commit_sha1 }
+    end
+
+    assert { cloned_commits_and_trees[sha1][:type] == :commit }
+
+    cloned_commits_and_trees[sha1][:sha1]
+  end
 
   protected
 
@@ -139,6 +179,7 @@ class Commit < GitObject
 
   # Visits all commit ancestors, starting by itself.
   def visit_ancestors(&block)
+    index       = 0
     visit_queue = []
     visited     = {}    # Why haven't I used an ordinary array for this as well? Because hashes have proved to be more than 3000
                         # times faster for searches (in average) for 37000 elements (# of commits of the Git source repository).
@@ -152,7 +193,7 @@ class Commit < GitObject
       current = visit_queue.shift
 
       # If any block supplied, visit the node.
-      result = yield(current) if block_given?
+      result = yield(current, index) if block_given?
 
       visited[current.sha1] = result
 
@@ -161,6 +202,8 @@ class Commit < GitObject
         # But do it only if node has not yet been visited nor already marked for visit (in the visit queue).
         visit_queue.push(parent) unless visited.has_key?(parent.sha1) || visit_queue.include?(parent)
       end
+
+      index += 1
     end
 
     visited
