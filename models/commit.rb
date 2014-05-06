@@ -78,7 +78,7 @@ class Commit < GitObject
   # Non-recursive methods.
   ########################
 
-  def validate_full_commit_history
+  def validate_ancestors
     visit_ancestors &:validate
 
     true
@@ -94,9 +94,7 @@ class Commit < GitObject
 
   def max_parents_count
     { sha1: nil, count: -1 }.tap do |max|
-      visit_ancestors do |commit, index|
-        puts index if index % 500 == 0
-
+      visit_ancestors do |commit|
         if (count = commit.parents.count) > max[:count]
           max[:sha1]  = commit.sha1
           max[:count] = count
@@ -141,7 +139,6 @@ class Commit < GitObject
 
   # Visits all commit ancestors, starting by itself.
   def visit_ancestors(&block)
-    index       = 0
     visit_queue = []
     visited     = {}    # Why haven't I used an ordinary array for this as well? Because hashes have proved to be more than 3000
                         # times faster for searches (in average) for 37000 elements (# of commits of the Git source repository).
@@ -155,7 +152,7 @@ class Commit < GitObject
       current = visit_queue.shift
 
       # If any block supplied, visit the node.
-      result = yield(current, index) if block_given?
+      result = yield(current) if block_given?
 
       visited[current.sha1] = result
 
@@ -164,12 +161,10 @@ class Commit < GitObject
         # But do it only if node has not yet been visited nor already marked for visit (in the visit queue).
         visit_queue.push(parent) unless visited.has_key?(parent.sha1) || visit_queue.include?(parent)
       end
-
-      index += 1
     end
 
     visited
   end
 
-  remember :tree, :parents, :clone_into, :max_parents_count, :commit_count
+  remember :tree, :parents, :clone_into, :max_parents_count, :commit_count, :validate
 end
