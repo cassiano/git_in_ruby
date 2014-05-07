@@ -1,5 +1,5 @@
 class DbTree < DbObject
-  has_many :entries, -> { order :id }, class_name: 'DbTreeEntry', foreign_key: :tree_id
+  has_many :entries, -> { order 'db_tree_entries.id' }, class_name: 'DbTreeEntry', foreign_key: :tree_id
 
   def to_raw
     [

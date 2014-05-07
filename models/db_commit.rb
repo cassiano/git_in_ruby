@@ -10,7 +10,7 @@ class DbCommit < DbObject
   belongs_to :committer_developer,  class_name: 'DbDeveloper',  foreign_key: :commit_committer_id
 
   has_and_belongs_to_many :parents,
-                          -> { order :id },
+                          -> { order 'db_commit_parents.id' },
                           class_name:               'DbCommit',
                           join_table:               :db_commit_parents,
                           foreign_key:              :commit_id,
