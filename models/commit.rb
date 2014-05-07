@@ -6,14 +6,14 @@ def assert
 end
 
 class Commit < GitObject
-  attr_reader :tree_sha1, :parents_sha1, :subject, :author, :committer
+  attr_reader :tree_sha1, :parents_sha1s, :subject, :author, :committer
 
   def tree
     Tree.find_or_initialize_by_sha1 repository, tree_sha1, commit_level: commit_level, load_blob_data: load_blob_data?
   end
 
   def parents
-    parents_sha1.map do |sha1|
+    parents_sha1s.map do |sha1|
       Commit.find_or_initialize_by_sha1 repository, sha1, commit_level: commit_level + 1, load_blob_data: load_blob_data?
     end
   end
@@ -170,11 +170,11 @@ class Commit < GitObject
   def parse_data(data)
     parsed_data = repository.parse_commit_data(data)
 
-    @tree_sha1    = parsed_data[:tree_sha1]
-    @parents_sha1 = parsed_data[:parents_sha1]
-    @author       = parsed_data[:author]
-    @committer    = parsed_data[:committer]
-    @subject      = parsed_data[:subject]
+    @tree_sha1     = parsed_data[:tree_sha1]
+    @parents_sha1s = parsed_data[:parents_sha1s]
+    @author        = parsed_data[:author]
+    @committer     = parsed_data[:committer]
+    @subject       = parsed_data[:subject]
   end
 
   # Visits all commit ancestors, starting by itself.

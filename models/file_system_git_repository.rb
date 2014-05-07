@@ -34,14 +34,14 @@ class FileSystemGitRepository < GitRepository
 
   def parse_commit_data(data)
     tree_sha1    = read_commit_data_row(data, 'tree')
-    parents_sha1 = read_commit_data_rows(data, 'parent')
+    parents_sha1s = read_commit_data_rows(data, 'parent')
     author       = read_commit_data_row(data, 'author')
     committer    = read_commit_data_row(data, 'committer')
     subject      = read_subject_rows(data)
 
     {
       tree_sha1:    tree_sha1,
-      parents_sha1: parents_sha1,
+      parents_sha1s: parents_sha1s,
       author:       author.as_utf8 =~ /(.*) (\d+) ([+-]\d{4})/ && [$1, Time.at($2.to_i).utc, $3],
       committer:    committer && (committer.as_utf8 =~ /(.*) (\d+) ([+-]\d{4})/ && [$1, Time.at($2.to_i).utc, $3]),
       subject:      subject && subject.as_utf8
@@ -74,8 +74,8 @@ class FileSystemGitRepository < GitRepository
     parse_object(raw_content).merge content_sha1: sha1_from_raw_content(raw_content)
   end
 
-  def create_commit_object!(tree_sha1, parents_sha1, author, committer, subject, cloned_from_sha1 = nil)
-    create_git_object! :commit, format_commit_data(tree_sha1, parents_sha1, author, committer, subject)
+  def create_commit_object!(tree_sha1, parents_sha1s, author, committer, subject, cloned_from_sha1 = nil)
+    create_git_object! :commit, format_commit_data(tree_sha1, parents_sha1s, author, committer, subject)
   end
 
   def create_tree_object!(entries, cloned_from_sha1 = nil)
@@ -100,11 +100,11 @@ class FileSystemGitRepository < GitRepository
 
   private
 
-  def format_commit_data(tree_sha1, parents_sha1, author, committer, subject)
+  def format_commit_data(tree_sha1, parents_sha1s, author, committer, subject)
     data = ""
 
     data << "tree #{tree_sha1}\n"
-    data << parents_sha1.map { |sha1| "parent #{sha1}\n" }.join
+    data << parents_sha1s.map { |sha1| "parent #{sha1}\n" }.join
     data << "author #{author[0]} #{author[1].to_i} #{author[2]}\n"
     data << "committer #{committer[0]} #{committer[1].to_i} #{committer[2]}\n"
 

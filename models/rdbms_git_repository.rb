@@ -32,11 +32,11 @@ class RdbmsGitRepository < GitRepository
 
   def parse_commit_data(data)
     {
-      tree_sha1:    data[0],
-      parents_sha1: data[1],
-      author:       data[2],
-      committer:    data[3],
-      subject:      data[4]
+      tree_sha1:      data[0],
+      parents_sha1s:  data[1],
+      author:         data[2],
+      committer:      data[3],
+      subject:        data[4]
     }
   end
 

@@ -26,11 +26,11 @@ class MemoryGitRepository < GitRepository
 
   def parse_commit_data(data)
     {
-      tree_sha1:    data[0],
-      parents_sha1: data[1],
-      author:       data[2],
-      committer:    data[3],
-      subject:      data[4]
+      tree_sha1:      data[0],
+      parents_sha1s:  data[1],
+      author:         data[2],
+      committer:      data[3],
+      subject:        data[4]
     }
   end
 
@@ -44,8 +44,8 @@ class MemoryGitRepository < GitRepository
     parse_object(raw_content).merge content_sha1: sha1_from_raw_content(raw_content)
   end
 
-  def create_commit_object!(tree_sha1, parents_sha1, author, committer, subject, cloned_from_sha1 = nil)
-    create_git_object! :commit, format_commit_data(tree_sha1, parents_sha1, author, committer, subject)
+  def create_commit_object!(tree_sha1, parents_sha1s, author, committer, subject, cloned_from_sha1 = nil)
+    create_git_object! :commit, format_commit_data(tree_sha1, parents_sha1s, author, committer, subject)
   end
 
   def create_tree_object!(entries, cloned_from_sha1 = nil)
@@ -66,8 +66,8 @@ class MemoryGitRepository < GitRepository
 
   private
 
-  def format_commit_data(tree_sha1, parents_sha1, author, committer, subject)
-    [tree_sha1, parents_sha1, author, committer, subject]
+  def format_commit_data(tree_sha1, parents_sha1s, author, committer, subject)
+    [tree_sha1, parents_sha1s, author, committer, subject]
   end
 
   def format_tree_data(entries)

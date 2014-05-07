@@ -51,8 +51,8 @@ class GitRepository
     raise NotImplementedError
   end
 
-  def create_commit!(branch_name, tree_sha1, parents_sha1, author, committer, subject, cloned_from_sha1 = nil)
-    commit_sha1 = create_commit_object!(tree_sha1, parents_sha1, author, committer, subject, cloned_from_sha1)
+  def create_commit!(branch_name, tree_sha1, parents_sha1s, author, committer, subject, cloned_from_sha1 = nil)
+    commit_sha1 = create_commit_object!(tree_sha1, parents_sha1s, author, committer, subject, cloned_from_sha1)
 
     update_branch! branch_name, commit_sha1
 
@@ -92,7 +92,7 @@ class GitRepository
 
   protected
 
-  def create_commit_object!(tree_sha1, parents_sha1, author, committer, subject, cloned_from_sha1 = nil)
+  def create_commit_object!(tree_sha1, parents_sha1s, author, committer, subject, cloned_from_sha1 = nil)
     raise NotImplementedError
   end
 
