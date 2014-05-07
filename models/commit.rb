@@ -99,7 +99,7 @@ class Commit < GitObject
     tree.validate
   end
 
-  def commit_count
+  def ancestors_count
     visit_ancestors.count
   end
 
@@ -222,5 +222,5 @@ class Commit < GitObject
     visited
   end
 
-  remember :tree, :parents, :clone_into, :max_parents_count, :commit_count, :validate
+  remember :tree, :parents, :clone_into, :max_parents_count, :ancestors_count, :validate
 end
