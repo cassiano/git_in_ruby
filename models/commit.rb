@@ -117,7 +117,7 @@ class Commit < GitObject
   end
 
   def clone_into(target_repository, branch = 'master')
-    puts 'Starting phase I (cloning trees for commits not already cloned)...'
+    puts 'Phase I: cloning trees for commits not yet cloned...'
 
     cloned_commits_and_trees = visit_ancestors do |commit, index|
       puts "(#{commit.commit_level}) Cloning commit #{commit.sha1} [##{index}]"
@@ -129,12 +129,12 @@ class Commit < GitObject
       end
     end
 
-    puts "\nStarting phase II (cloning pending commits, based on the just cloned trees)..."
+    puts "\nPhase II: cloning pending commits, based on the trees just cloned..."
 
     cloned_trees = cloned_commits_and_trees.find_all { |_, data| data[:type] == :tree }.reverse
 
     while !cloned_trees.empty? do
-      puts "#{cloned_trees.count} tree(s) still pending"
+      puts "#{cloned_trees.count} trees still pending"
 
       # Find the 1st commit which have all parents already cloned (remember that having no parents also satisfy this criteria).
       # Notice that, for performance reasons, the cloned trees are searched in reversed order (so older commits are looked 1st).
