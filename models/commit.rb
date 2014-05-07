@@ -117,8 +117,8 @@ class Commit < GitObject
   end
 
   def clone_into(target_repository, branch = 'master')
-    cloned_commits_and_trees = visit_ancestors do |commit|
-      puts "(#{commit.commit_level}) Cloning commit #{commit.sha1}"
+    cloned_commits_and_trees = visit_ancestors do |commit, index|
+      puts "(#{commit.commit_level}) Cloning commit #{commit.sha1} [##{index}]"
 
       if (clone_sha1 = target_repository.find_cloned_git_object(commit.sha1))
         { type: :commit, sha1: clone_sha1 }
@@ -127,37 +127,44 @@ class Commit < GitObject
       end
     end
 
-    while !(cloned_trees = cloned_commits_and_trees.find_all { |_, data| data[:type] == :tree }).empty? do
-      next_commit_to_clone = nil
+    cloned_trees = cloned_commits_and_trees.find_all { |_, data| data[:type] == :tree }
 
-      cloned_trees.reverse.each do |commit_sha1, data|
-        # Find a commit (any) whose parents have already been cloned.
-        next_commit_to_clone = Commit.find_or_initialize_by_sha1(repository, commit_sha1)
+    while !cloned_trees.empty? do
+      # Find the 1st commit, in reverse order, whose all parents have already been cloned (remember that having no parents
+      # also satisfy this criteria).
+      commit_tree_match = cloned_trees.reverse.find do |commit_sha1, data|
+        commit = Commit.find_or_initialize_by_sha1(repository, commit_sha1)
 
-        parents_cloned = next_commit_to_clone.parents.all? do |parent|
-          cloned_commits_and_trees[parent.sha1][:type] == :commit
-        end
-
-        break if parents_cloned
+        commit.parents.all? { |parent| cloned_commits_and_trees[parent.sha1][:type] == :commit }
       end
 
-      break if !next_commit_to_clone
+      assert { !commit_tree_match.nil? }
+
+      next_commit_to_clone = Commit.find_or_initialize_by_sha1(repository, commit_tree_match[0])
+
+      parents_clones = next_commit_to_clone.parents.map do |parent|
+        assert { cloned_commits_and_trees[parent.sha1][:type] == :commit }
+
+        cloned_commits_and_trees[parent.sha1][:sha1]
+      end
 
       cloned_commit_sha1 = target_repository.create_commit!(
         branch,
-        cloned_commits_and_trees[next_commit_to_clone.sha1][:sha1],
-        next_commit_to_clone.parents.map do |parent|
-          assert { cloned_commits_and_trees[parent.sha1][:type] == :commit }
-
-          cloned_commits_and_trees[parent.sha1][:sha1]
-        end,
+        commit_tree_match[1][:sha1],
+        parents_clones,
         next_commit_to_clone.author,
         next_commit_to_clone.committer,
         next_commit_to_clone.subject,
         next_commit_to_clone.sha1
       )
 
+      assert { !cloned_commit_sha1.nil? }
+
+      # Replace the cloned tree by a cloned commit reference.
       cloned_commits_and_trees[next_commit_to_clone.sha1] = { type: :commit, sha1: cloned_commit_sha1 }
+
+      # Delete the just cloned commit's tree from the "cloned_trees" collection.
+      cloned_trees.delete commit_tree_match
     end
 
     assert { cloned_commits_and_trees[sha1][:type] == :commit }
