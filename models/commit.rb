@@ -130,7 +130,7 @@ class Commit < GitObject
     cloned_trees = cloned_commits_and_trees.find_all { |_, data| data[:type] == :tree }
 
     while !cloned_trees.empty? do
-      # Find the 1st commit, in reverse order, whose all parents have already been cloned (remember that having no parents
+      # Find the 1st commit, in reverse order, which have all parents already cloned (remember that having no parents
       # also satisfy this criteria).
       commit_tree_match = cloned_trees.reverse.find do |commit_sha1, data|
         commit = Commit.find_or_initialize_by_sha1(repository, commit_sha1)
@@ -184,8 +184,8 @@ class Commit < GitObject
     @subject       = parsed_data[:subject]
   end
 
-  # Visits all commit ancestors, starting by itself.
-  def visit_ancestors(&block)
+  # Visits all commit ancestors, starting by itself, yielding the supplied block (if any) the current commit and a sequential index.
+  def visit_ancestors
     index       = 0
     visit_queue = []
     visited     = {}    # Why haven't I used an ordinary array for this as well? Because hashes have proved to be more than 3000
