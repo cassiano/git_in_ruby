@@ -80,7 +80,7 @@ class Commit < GitObject
 
   def validate_ancestors
     visit_ancestors do |commit, index|
-      puts index if index % 100 == 0
+      # puts index if index % 100 == 0
 
       commit.validate
     end
@@ -99,7 +99,7 @@ class Commit < GitObject
   def max_parents_count
     { sha1: nil, count: -1 }.tap do |max|
       visit_ancestors do |commit, index|
-        puts "[#{index}] Max so far: #{max[:count]} (#{max[:sha1]})" if index % 1000 == 0
+        # puts "[#{index}] Max so far: #{max[:count]} (#{max[:sha1]})" if index % 1000 == 0
 
         if (count = commit.parents.count) > max[:count]
           max[:sha1]  = commit.sha1
@@ -113,7 +113,7 @@ class Commit < GitObject
     puts 'Phase I: cloning trees for commits not yet cloned...'
 
     cloned_commits_and_trees = visit_ancestors do |commit, index|
-      puts "(#{commit.commit_level}) Cloning commit #{commit.sha1} [##{index}]"
+      puts "(#{commit.commit_level}) Cloning commit #{commit.sha1} [##{index + 1}]"
 
       if (clone_sha1 = target_repository.find_cloned_git_object(commit.sha1))
         { type: :commit, sha1: clone_sha1 }
