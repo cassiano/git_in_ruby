@@ -1,10 +1,3 @@
-class AssertionError < RuntimeError
-end
-
-def assert
-  raise AssertionError unless yield
-end
-
 class Commit < GitObject
   attr_reader :tree_sha1, :parents_sha1s, :subject, :author, :committer
 
