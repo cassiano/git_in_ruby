@@ -2,14 +2,15 @@ require 'json'
 require 'base64'
 
 class MemoryGitRepository < GitRepository
-  attr_reader :branches, :head, :objects
+  attr_reader :branches, :head, :objects, :cloned_objects
 
   def initialize(options = {})
     super
 
-    @branches = {}
-    @head     = 'master'
-    @objects  = {}
+    @branches       = {}
+    @head           = 'master'
+    @objects        = {}
+    @cloned_objects = {}
   end
 
   def head_commit_sha1
@@ -45,15 +46,15 @@ class MemoryGitRepository < GitRepository
   end
 
   def create_commit_object!(tree_sha1, parents_sha1s, author, committer, subject, cloned_from_sha1 = nil)
-    create_git_object! :commit, format_commit_data(tree_sha1, parents_sha1s, author, committer, subject)
+    create_git_object! :commit, format_commit_data(tree_sha1, parents_sha1s, author, committer, subject), cloned_from_sha1
   end
 
   def create_tree_object!(entries, cloned_from_sha1 = nil)
-    create_git_object! :tree, format_tree_data(entries)
+    create_git_object! :tree, format_tree_data(entries), cloned_from_sha1
   end
 
   def create_blob_object!(data, cloned_from_sha1 = nil)
-    create_git_object! :blob, data || ''
+    create_git_object! :blob, data || '', cloned_from_sha1
   end
 
   def update_branch!(name, commit_sha1)
@@ -62,6 +63,10 @@ class MemoryGitRepository < GitRepository
 
   def branch_names
     branches.keys
+  end
+
+  def find_cloned_git_object(cloned_from_sha1)
+    cloned_objects[cloned_from_sha1]
   end
 
   private
@@ -80,11 +85,13 @@ class MemoryGitRepository < GitRepository
     end
   end
 
-  def create_git_object!(type, data)
+  def create_git_object!(type, data, cloned_from_sha1)
     raw_content = [type, data && data.size, data]
     sha1        = sha1_from_raw_content(raw_content)
 
     objects[sha1] ||= raw_content
+
+    cloned_objects[cloned_from_sha1] = sha1 if cloned_from_sha1
 
     sha1
   end
