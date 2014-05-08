@@ -68,9 +68,9 @@ class Tree < GitObject
       return clone_sha1
     end
 
-    entries_clones = entries.map do |name, git_object|
+    entries_clones = entries.map { |name, git_object|
       [git_object.class.name.underscore.to_sym, name, git_object.clone_into(target_repository)]
-    end
+      }.reject { |entry| !entry[2] }
 
     target_repository.create_tree! entries_clones, sha1
   end
