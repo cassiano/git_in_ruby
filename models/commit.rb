@@ -57,18 +57,18 @@ class Commit < GitObject
     }
   end
 
-  def clone_into(target_repository, branch = 'master')
-    puts "(#{commit_level}) Cloning commit #{sha1}"
-
-    if (clone_sha1 = target_repository.find_cloned_git_object(sha1))
-      return clone_sha1
-    end
-
-    parents_clones_sha1s = parents.map { |parent| parent.clone_into(target_repository, branch) }
-    tree_clone_sha1      = tree.clone_into(target_repository)
-
-    target_repository.create_commit! branch, tree_clone_sha1, parents_clones_sha1s, author, committer, subject, sha1
-  end
+  # def clone_into(target_repository, branch = 'master')
+  #   puts "(#{commit_level}) Cloning commit #{sha1}"
+  #
+  #   if (clone_sha1 = target_repository.find_cloned_git_object(sha1))
+  #     return clone_sha1
+  #   end
+  #
+  #   parents_clones_sha1s = parents.map { |parent| parent.clone_into(target_repository, branch) }
+  #   tree_clone_sha1      = tree.clone_into(target_repository)
+  #
+  #   target_repository.create_commit! branch, tree_clone_sha1, parents_clones_sha1s, author, committer, subject, sha1
+  # end
 
   # def max_parents_count
   #   ([{ sha1: sha1, count: parents.count }] + parents.map(&:max_parents_count)).max { |a, b| a[:count] <=> b[:count] }
