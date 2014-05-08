@@ -45,16 +45,16 @@ class MemoryGitRepository < GitRepository
     parse_object(raw_content).merge content_sha1: sha1_from_raw_content(raw_content)
   end
 
-  def create_commit_object!(tree_sha1, parents_sha1s, author, committer, subject, cloned_from_sha1 = nil)
-    create_git_object! :commit, format_commit_data(tree_sha1, parents_sha1s, author, committer, subject), cloned_from_sha1
+  def create_commit_object!(tree_sha1, parents_sha1s, author, committer, subject, source_sha1 = nil)
+    create_git_object! :commit, format_commit_data(tree_sha1, parents_sha1s, author, committer, subject), source_sha1
   end
 
-  def create_tree_object!(entries, cloned_from_sha1 = nil)
-    create_git_object! :tree, format_tree_data(entries), cloned_from_sha1
+  def create_tree_object!(entries, source_sha1 = nil)
+    create_git_object! :tree, format_tree_data(entries), source_sha1
   end
 
-  def create_blob_object!(data, cloned_from_sha1 = nil)
-    create_git_object! :blob, data || '', cloned_from_sha1
+  def create_blob_object!(data, source_sha1 = nil)
+    create_git_object! :blob, data || '', source_sha1
   end
 
   def update_branch!(name, commit_sha1)
@@ -65,8 +65,8 @@ class MemoryGitRepository < GitRepository
     branches.keys
   end
 
-  def find_cloned_git_object(cloned_from_sha1)
-    cloned_objects[cloned_from_sha1]
+  def find_cloned_git_object(source_sha1)
+    cloned_objects[source_sha1]
   end
 
   private
@@ -85,13 +85,13 @@ class MemoryGitRepository < GitRepository
     end
   end
 
-  def create_git_object!(type, data, cloned_from_sha1)
+  def create_git_object!(type, data, source_sha1)
     raw_content = [type, data && data.size, data]
     sha1        = sha1_from_raw_content(raw_content)
 
     objects[sha1] ||= raw_content
 
-    cloned_objects[cloned_from_sha1] = sha1 if cloned_from_sha1
+    cloned_objects[source_sha1] = sha1 if source_sha1
 
     sha1
   end

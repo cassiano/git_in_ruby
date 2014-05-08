@@ -21,13 +21,6 @@ class Commit < GitObject
     end
   end
 
-  # def validate_data
-  #   tree.validate
-  #   parents.each &:validate
-  #
-  #   true
-  # end
-
   def checkout!(destination_path = default_checkout_folder)
     FileUtils.mkpath destination_path
     tree.checkout! destination_path
@@ -56,6 +49,13 @@ class Commit < GitObject
       changes
     }
   end
+
+  # def validate_data
+  #   tree.validate
+  #   parents.each &:validate
+  #
+  #   true
+  # end
 
   # def clone_into(target_repository, branch = 'master')
   #   puts "(#{commit_level}) Cloning commit #{sha1}"

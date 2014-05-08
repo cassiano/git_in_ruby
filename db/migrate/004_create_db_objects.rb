@@ -3,7 +3,7 @@ class CreateDbObjects < ActiveRecord::Migration
     create_table :db_objects do |t|
       t.column :sha1, :string, limit: 40, null: false
       t.column :type, :string, limit: 16, null: false      # DbBlob, DbTree or DbCommit.
-      t.column :cloned_from_sha1, :string, limit: 40
+      t.column :source_sha1, :string, limit: 40
 
       # Blobs.
       t.column :blob_data, :longblob
@@ -24,7 +24,7 @@ class CreateDbObjects < ActiveRecord::Migration
     add_foreign_key :db_objects, :db_objects, column: :commit_tree_id
 
     add_index :db_objects, :sha1,             :unique => true
-    add_index :db_objects, :cloned_from_sha1, :unique => true
+    add_index :db_objects, :source_sha1, :unique => true
   end
 
   def self.down

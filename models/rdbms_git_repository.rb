@@ -52,7 +52,7 @@ class RdbmsGitRepository < GitRepository
     parse_object(raw_content).merge content_sha1: sha1_from_raw_content(raw_content)
   end
 
-  def create_commit_object!(tree, parents, author, committer, subject, cloned_from_sha1 = nil)
+  def create_commit_object!(tree, parents, author, committer, subject, source_sha1 = nil)
     data = format_commit_data(tree, parents, author, committer, subject)
     sha1 = sha1_from_raw_content([:commit, data])
 
@@ -62,7 +62,7 @@ class RdbmsGitRepository < GitRepository
       author:           data[2],
       committer:        data[3],
       subject:          data[4],
-      cloned_from_sha1: cloned_from_sha1
+      source_sha1: source_sha1
     ).find_or_create_by(sha1: sha1)
 
     raise "Error when creating DbCommit: #{commit.errors.full_messages}. Data: #{data.inspect}." if !commit.errors.blank?
@@ -70,7 +70,7 @@ class RdbmsGitRepository < GitRepository
     sha1
   end
 
-  def create_tree_object!(entries, cloned_from_sha1 = nil)
+  def create_tree_object!(entries, source_sha1 = nil)
     data = format_tree_data(entries)
     sha1 = sha1_from_raw_content([:tree, data])
 
@@ -82,7 +82,7 @@ class RdbmsGitRepository < GitRepository
           git_object: db_object_for(entry[2])
         )
       end,
-      cloned_from_sha1: cloned_from_sha1
+      source_sha1: source_sha1
     ).find_or_create_by(sha1: sha1)
 
     raise "Error when creating DbTree: #{tree.errors.full_messages}. Entries: #{entries.inspect}." if !tree.errors.blank?
@@ -90,12 +90,12 @@ class RdbmsGitRepository < GitRepository
     sha1
   end
 
-  def create_blob_object!(data, cloned_from_sha1 = nil)
+  def create_blob_object!(data, source_sha1 = nil)
     sha1 = sha1_from_raw_content([:blob, data])
 
     blob = DbBlob.create_with(
       data:             Zlib::Deflate.deflate(data),
-      cloned_from_sha1: cloned_from_sha1
+      source_sha1: source_sha1
     ).find_or_create_by(sha1: sha1)
 
     raise "Error when creating DbBlob: #{blob.errors.full_messages}" if !blob.errors.blank?
@@ -112,7 +112,7 @@ class RdbmsGitRepository < GitRepository
   end
 
   def find_cloned_git_object(original_object_sha1)
-    (git_object = DbObject.find_by(cloned_from_sha1: original_object_sha1)) && git_object.sha1
+    (git_object = DbObject.find_by(source_sha1: original_object_sha1)) && git_object.sha1
   end
 
   private

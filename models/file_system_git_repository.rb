@@ -74,15 +74,15 @@ class FileSystemGitRepository < GitRepository
     parse_object(raw_content).merge content_sha1: sha1_from_raw_content(raw_content)
   end
 
-  def create_commit_object!(tree_sha1, parents_sha1s, author, committer, subject, cloned_from_sha1 = nil)
+  def create_commit_object!(tree_sha1, parents_sha1s, author, committer, subject, source_sha1 = nil)
     create_git_object! :commit, format_commit_data(tree_sha1, parents_sha1s, author, committer, subject)
   end
 
-  def create_tree_object!(entries, cloned_from_sha1 = nil)
+  def create_tree_object!(entries, source_sha1 = nil)
     create_git_object! :tree, format_tree_data(entries)
   end
 
-  def create_blob_object!(data, cloned_from_sha1 = nil)
+  def create_blob_object!(data, source_sha1 = nil)
     create_git_object! :blob, data || ''
   end
 
