@@ -39,7 +39,7 @@ class Commit < GitObject
     updates_and_creations.concat deletions
 
     # Identify renamed files, replacing the :created and :deleted associated pair by a single :renamed one.
-    updates_and_creations.find_all { |(_, action, _)| action == :deleted }.inject(updates_and_creations) { |changes, deleted_file|
+    updates_and_creations.find_all { |(_, action, _)| action == :deleted }.inject(updates_and_creations) do |changes, deleted_file|
       if (created_file = changes.find { |(_, action, (_, created_sha1))| action == :created && created_sha1 == deleted_file[2][0] })
         changes.delete created_file
         changes.delete deleted_file
@@ -47,7 +47,7 @@ class Commit < GitObject
       end
 
       changes
-    }
+    end
   end
 
   # def validate_data
@@ -162,7 +162,7 @@ class Commit < GitObject
       # Replace the cloned tree by a cloned commit reference.
       cloned_commits_and_trees[next_commit_to_clone.sha1] = { type: :commit, sha1: cloned_commit_sha1 }
 
-      # Delete the just cloned commit's tree from the "cloned_trees" collection.
+      # Delete the just cloned commit's tree from the cloned_trees collection.
       cloned_trees.delete commit_tree_match
     end
 
