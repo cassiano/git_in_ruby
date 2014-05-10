@@ -51,7 +51,7 @@ class Tree < GitObject
 
       if action   # A nil action indicates an unchanged file.
         if Tree === entry
-          changes.concat entry.changes_between(other_entries.find_all { |e| Tree === e }, filename_or_path)
+          changes.concat entry.changes_between(other_entries.grep(Tree), filename_or_path)
         else    # Blob or one of its subclasses.
           changes << [filename_or_path, action, sha1s]
         end
