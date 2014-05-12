@@ -15,8 +15,16 @@ class GitObject
     '160000' => 'GitSubModule'
   }
 
-  def self.find_or_initialize_by_sha1(repository, sha1, options = {})
-    repository.instances[sha1] ||= new(repository, Sha1Util.standardized_hex_string_sha1(sha1), options)
+  class << self
+    attr_accessor :filemode
+
+    def mode_for_type(type)
+      VALID_MODES.inject({}) { |acc, (mode, object_type)| acc.merge object_type.underscore.to_sym => mode }[type]
+    end
+
+    def find_or_initialize_by_sha1(repository, sha1, options = {})
+      repository.instances[sha1] ||= new(repository, Sha1Util.standardized_hex_string_sha1(sha1), options)
+    end
   end
 
   def initialize(repository, sha1, options = {})
@@ -56,10 +64,6 @@ class GitObject
 
   def checkout!(destination_path = default_checkout_folder)
     raise NotImplementedError
-  end
-
-  def self.mode_for_type(type)
-    VALID_MODES.inject({}) { |acc, (mode, object_type)| acc.merge object_type.underscore.to_sym => mode }[type]
   end
 
   protected
