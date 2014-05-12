@@ -1,4 +1,6 @@
 class Blob < GitObject
+  add_mode self, '100644'
+
   def validate_data
     true
   end

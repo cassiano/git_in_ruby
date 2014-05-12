@@ -1,12 +1,14 @@
 class Tree < GitObject
   attr_reader :entries_info
 
+  add_mode self, '40000'
+
   def entries
     entries_info.inject({}) do |items, (mode, name, sha1)|
       raise InvalidModeError, "Invalid mode #{mode} in file '#{name}'" unless VALID_MODES[mode]
 
       # Instantiate the object, based on its mode (Blob, Tree, ExecutableFile etc).
-      items.merge name => Object.const_get(VALID_MODES[mode]).find_or_initialize_by_sha1(
+      items.merge name => VALID_MODES[mode].find_or_initialize_by_sha1(
         repository, sha1, commit_level: commit_level, load_blob_data: load_blob_data?
       )
     end

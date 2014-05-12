@@ -27,6 +27,14 @@ Dir[File.join(File.dirname(File.expand_path(__FILE__)), 'models', '*.rb')].each 
   autoload class_name.camel_case, file
 end
 
+# Load all GitObject subclasses.
+Tree
+Blob
+ExecutableFile
+GroupWritableFile
+SymLink
+GitSubModule
+
 def run!(project_path, bare_repository)
   repository = FileSystemGitRepository.new(project_path: project_path, bare_repository: bare_repository)
   repository.validate

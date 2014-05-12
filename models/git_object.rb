@@ -4,22 +4,18 @@ class GitObject
   attr_reader :repository, :sha1, :commit_level, :type, :size, :data, :content_sha1
 
   # http://stackoverflow.com/questions/737673/how-to-read-the-mode-field-of-git-ls-trees-output
-  # A clear violation of the Open-Closed Principle (GitObjects should have no knowledge about Trees, Blobs etc).
-  # For more details: http://cl.ly/0i182e1C1A2k
-  VALID_MODES = {
-    '40000'  => 'Tree',
-    '100644' => 'Blob',
-    '100755' => 'ExecutableFile',
-    '100664' => 'GroupWritableFile',
-    '120000' => 'SymLink',
-    '160000' => 'GitSubModule'
-  }
+  VALID_MODES = {}
+
+  def self.add_mode(cls, mode)
+    VALID_MODES[mode] = cls
+  end
 
   def self.find_or_initialize_by_sha1(repository, sha1, options = {})
     repository.instances[sha1] ||= new(repository, Sha1Util.standardized_hex_string_sha1(sha1), options)
   end
 
   def initialize(repository, sha1, options = {})
+    # Set default options.
     options = {
       commit_level: 1,
       load_blob_data: false
@@ -58,7 +54,7 @@ class GitObject
   end
 
   def self.mode_for_type(type)
-    VALID_MODES.inject({}) { |acc, (mode, object_type)| acc.merge object_type.underscore.to_sym => mode }[type]
+    VALID_MODES.inject({}) { |acc, (mode, object_type)| acc.merge(object_type.name.underscore.to_sym => mode) }[type]
   end
 
   protected
@@ -85,7 +81,7 @@ class GitObject
     # Since the data will not always be available, its size must be checked here (and not later, in the :validate method).
     raise InvalidSizeError, "Invalid size #{@size} (expected #{data_size})" unless @size == data_size
 
-    # Nullify data for Blobs if applicable.
+    # Nullify data for Blobs, if applicable.
     @data = nil if @type == :blob && !load_blob_data?
   end
 

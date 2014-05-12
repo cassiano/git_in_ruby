@@ -1,4 +1,4 @@
-require File.join(File.dirname(File.expand_path(__FILE__)), '../head_fsck')
+require_relative '../head_fsck'
 require 'contest'
 require 'turn/autorun'
 
