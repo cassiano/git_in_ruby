@@ -57,12 +57,12 @@ class RdbmsGitRepository < GitRepository
     sha1 = sha1_from_raw_content([:commit, data])
 
     commit = DbCommit.create_with(
-      tree:             db_object_for(data[0]),
-      parents:          data[1].map { |parent| db_object_for(parent) },
-      author:           data[2],
-      committer:        data[3],
-      subject:          data[4],
-      source_sha1: source_sha1
+      tree:         db_object_for(data[0]),
+      parents:      data[1].map { |parent| db_object_for(parent) },
+      author:       data[2],
+      committer:    data[3],
+      subject:      data[4],
+      source_sha1:  source_sha1
     ).find_or_create_by(sha1: sha1)
 
     raise "Error when creating DbCommit: #{commit.errors.full_messages}. Data: #{data.inspect}." if !commit.errors.blank?
@@ -94,8 +94,8 @@ class RdbmsGitRepository < GitRepository
     sha1 = sha1_from_raw_content([:blob, data])
 
     blob = DbBlob.create_with(
-      data:             Zlib::Deflate.deflate(data),
-      source_sha1: source_sha1
+      data:         Zlib::Deflate.deflate(data),
+      source_sha1:  source_sha1
     ).find_or_create_by(sha1: sha1)
 
     raise "Error when creating DbBlob: #{blob.errors.full_messages}" if !blob.errors.blank?
