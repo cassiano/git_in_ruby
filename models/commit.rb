@@ -186,17 +186,15 @@ class Commit < GitObject
   # Visits all commit ancestors, starting by itself, yielding the supplied block (if any) the current commit and a sequential index.
   def visit_ancestors
     index       = 0
-    visit_queue = []
-    visited     = {}    # Why haven't I used an ordinary array for this as well? Because hashes have proved to be more than 3000
-                        # times faster for searches (in average) for 37000 elements (# of commits of the Git source repository).
-                        # See: https://gist.github.com/cassiano/c61bf6d553cc0bea15fe
+    visit_queue = {}    # We will use hashes instead of arrays (for speed). See: https://gist.github.com/cassiano/c61bf6d553cc0bea15fe
+    visited     = {}
 
     # Start scheduling a visit for the node pointed to by 'self'.
-    visit_queue.push self
+    visit_queue[self] = nil     # Notice the hash value itself is not important, but only the key.
 
     # Repeat while there are still nodes to be visited.
     while !visit_queue.empty? do
-      current = visit_queue.shift
+      current = visit_queue.shift.first     # Retrieve the oldest key.
 
       # If any block supplied, visit the node.
       result = yield(current, index) if block_given?
@@ -206,7 +204,7 @@ class Commit < GitObject
       # Schedule a visit for each of the current node's parent.
       current.parents.each do |parent|
         # But do it only if node has not yet been visited nor already marked for visit (in the visit queue).
-        visit_queue.push(parent) unless visited.has_key?(parent.sha1) || visit_queue.include?(parent)
+        visit_queue[parent] = nil unless visit_queue.has_key?(parent) || visited.has_key?(parent.sha1)
       end
 
       index += 1
