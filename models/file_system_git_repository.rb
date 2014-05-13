@@ -33,18 +33,18 @@ class FileSystemGitRepository < GitRepository
   end
 
   def parse_commit_data(data)
-    tree_sha1    = read_commit_data_row(data, 'tree')
+    tree_sha1     = read_commit_data_row(data, 'tree')
     parents_sha1s = read_commit_data_rows(data, 'parent')
-    author       = read_commit_data_row(data, 'author')
-    committer    = read_commit_data_row(data, 'committer')
-    subject      = read_subject_rows(data)
+    author        = read_commit_data_row(data, 'author')
+    committer     = read_commit_data_row(data, 'committer')
+    subject       = read_subject_rows(data)
 
     {
-      tree_sha1:    tree_sha1,
-      parents_sha1s: parents_sha1s,
-      author:       author.as_utf8 =~ /(.*) (\d+) ([+-]\d{4})/ && [$1, Time.at($2.to_i).utc, $3],
-      committer:    committer && (committer.as_utf8 =~ /(.*) (\d+) ([+-]\d{4})/ && [$1, Time.at($2.to_i).utc, $3]),
-      subject:      subject && subject.as_utf8
+      tree_sha1:      tree_sha1,
+      parents_sha1s:  parents_sha1s,
+      author:         author.as_utf8 =~ /(.*) (\d+) ([+-]\d{4})/ && [$1, Time.at($2.to_i).utc, $3],
+      committer:      committer && (committer.as_utf8 =~ /(.*) (\d+) ([+-]\d{4})/ && [$1, Time.at($2.to_i).utc, $3]),
+      subject:        subject && subject.as_utf8
     }
   end
 

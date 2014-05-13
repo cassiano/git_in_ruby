@@ -25,4 +25,8 @@ class String
   def as_utf8
     force_encoding(find_valid_encoding).encode 'UTF-8'
   end
+
+  def unicode_normalize
+    ActiveSupport::Multibyte::Unicode.normalize self
+  end
 end

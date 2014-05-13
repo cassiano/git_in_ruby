@@ -25,7 +25,7 @@ class DbCommit < DbObject
   # Notice here we use the "Facade" design pattern, so users of our class won't notice we have actually splitted the Author into 2 disctinct
   # pieces (name and date).
   def author
-    [ActiveSupport::Multibyte::Unicode.normalize(author_developer.name_and_email), author_date, author_date_gmt_offset]
+    [author_developer.name_and_email.unicode_normalize, author_date, author_date_gmt_offset]
   end
 
   def author=(new_author)
@@ -36,7 +36,7 @@ class DbCommit < DbObject
 
   # The same comment done above for Author applies here for Committer (on using the "Facade" design pattern).
   def committer
-    [ActiveSupport::Multibyte::Unicode.normalize(committer_developer.name_and_email), committer_date, committer_date_gmt_offset]
+    [committer_developer.name_and_email.unicode_normalize, committer_date, committer_date_gmt_offset]
   end
 
   def committer=(new_committer)
