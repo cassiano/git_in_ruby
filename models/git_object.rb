@@ -16,15 +16,23 @@ class GitObject
   }
 
   class << self
+    extend Memoize
+
     attr_accessor :filemode
 
+    def valid_modes_by_type
+      VALID_MODES.inject({}) { |acc, (mode, object_type)| acc.merge(object_type.underscore.to_sym => mode) }
+    end
+
     def mode_for_type(type)
-      VALID_MODES.inject({}) { |acc, (mode, object_type)| acc.merge object_type.underscore.to_sym => mode }[type]
+      valid_modes_by_type[type]
     end
 
     def find_or_initialize_by_sha1(repository, sha1, options = {})
       repository.instances[sha1] ||= new(repository, Sha1Util.standardized_hex_string_sha1(sha1), options)
     end
+
+    remember :valid_modes_by_type, :mode_for_type
   end
 
   def initialize(repository, sha1, options = {})
