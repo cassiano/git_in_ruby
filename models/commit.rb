@@ -171,6 +171,13 @@ class Commit < GitObject
     cloned_commits_and_trees[sha1][:sha1]
   end
 
+  def ==(another_commit)
+    author == another_commit.author &&
+      committer == another_commit.committer &&
+      subject == another_commit.subject &&
+      tree == another_commit.tree
+  end
+
   protected
 
   def parse_data(data)
@@ -213,5 +220,5 @@ class Commit < GitObject
     visited
   end
 
-  remember :tree, :parents, :clone_into, :max_parents_count, :ancestors_count, :validate
+  remember :tree, :parents, :clone_into, :max_parents_count, :ancestors_count, :validate, :==
 end

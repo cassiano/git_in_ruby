@@ -78,6 +78,14 @@ class Tree < GitObject
     target_repository.create_tree! entries_clones, sha1
   end
 
+  def ==(another_tree)
+    entries.all? do |(name, entry)|
+      if (another_entry = another_tree.entries[name])
+        entry.class == another_entry.class && entry == another_entry
+      end
+    end
+  end
+
   protected
 
   def parse_data(data)
@@ -86,5 +94,5 @@ class Tree < GitObject
     @entries_info = parsed_data[:entries_info]
   end
 
-  remember :entries, :changes_between, :clone_into
+  remember :entries, :changes_between, :clone_into, :==
 end

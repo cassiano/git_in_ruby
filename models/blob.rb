@@ -26,5 +26,11 @@ class Blob < GitObject
     target_repository.create_blob! data, sha1
   end
 
-  remember :clone_into
+  def ==(another_blob)
+    raise "Blobs cannot be compared (blob data not loaded)." if !load_blob_data? || !another_blob.load_blob_data?
+
+    data == another_blob.data
+  end
+
+  remember :clone_into, :==
 end
