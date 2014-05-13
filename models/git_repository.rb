@@ -1,5 +1,3 @@
-require 'forwardable'
-
 class GitRepository
   extend Memoize
 
