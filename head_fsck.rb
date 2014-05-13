@@ -20,6 +20,9 @@ require 'active_record'
 # Required external libraries.
 Dir[File.join(File.dirname(File.expand_path(__FILE__)), 'lib', '*.rb')].each { |file| require file }
 
+# Allow memoization for all classes.
+Object.extend Memoize
+
 # Required models. It is assumed that each model file declares one (and only one) model class, whose name is a camelized version of the filename.
 # For example, file "db_blob.rb" should declare a class named "DbBlob" and nothing else.
 Dir[File.join(File.dirname(File.expand_path(__FILE__)), 'models', '*.rb')].each do |file|

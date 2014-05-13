@@ -1,6 +1,4 @@
 class GitObject
-  extend Memoize
-
   attr_reader :repository, :sha1, :commit_level, :type, :size, :data, :content_sha1
 
   # http://stackoverflow.com/questions/737673/how-to-read-the-mode-field-of-git-ls-trees-output
@@ -16,8 +14,6 @@ class GitObject
   }
 
   class << self
-    extend Memoize
-
     attr_accessor :filemode
 
     def valid_modes_by_type

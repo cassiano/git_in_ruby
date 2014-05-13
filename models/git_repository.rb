@@ -1,6 +1,4 @@
 class GitRepository
-  extend Memoize
-
   attr_reader :instances
 
   delegate :max_parents_count,      to: :head_commit
