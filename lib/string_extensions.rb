@@ -23,7 +23,7 @@ class String
   end
 
   def as_utf8
-    force_encoding(find_valid_encoding).encode 'UTF-8'
+    force_encoding(find_valid_encoding).encode('UTF-8').unicode_normalize
   end
 
   def unicode_normalize
