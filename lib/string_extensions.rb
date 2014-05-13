@@ -29,4 +29,8 @@ class String
   def unicode_normalize
     ActiveSupport::Multibyte::Unicode.normalize self
   end
+
+  def is_sha1?
+    self =~ /\A\h{40}\Z/
+  end
 end
