@@ -29,7 +29,7 @@ class Blob < GitObject
   def ==(another_blob)
     raise "Blobs cannot be compared (blob data not loaded)." if !load_blob_data? || !another_blob.load_blob_data?
 
-    data == another_blob.data
+    equals? data, another_blob.data, 'data'
   end
 
   remember :clone_into, :==
