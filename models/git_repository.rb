@@ -91,9 +91,7 @@ class GitRepository
   end
 
   def ==(another_repository)
-    another_ancestors = another_repository.head_commit_with_blob_data.visit_ancestors { |commit| commit }
-
-    head_commit_with_blob_data.ancestors_equal? another_ancestors
+    head_commit_with_blob_data.ancestors_equal? another_repository.head_commit_with_blob_data
   end
 
   protected
