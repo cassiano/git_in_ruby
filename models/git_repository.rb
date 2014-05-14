@@ -18,7 +18,7 @@ class GitRepository
   end
 
   def head_commit(options = {})
-    Commit.find_or_initialize_by_sha1 self, head_commit_sha1, options
+    Commit.find_or_initialize_by_sha1(self, head_commit_sha1, options) if head_commit_sha1
   end
 
   def head_commit_with_blob_data(options = {})
@@ -88,6 +88,12 @@ class GitRepository
 
   def commit_count
     head_commit.ancestors_count
+  end
+
+  def ==(another_repository)
+    another_ancestors = another_repository.head_commit_with_blob_data.visit_ancestors { |commit| commit }
+
+    head_commit_with_blob_data.ancestors_equal? another_ancestors
   end
 
   protected

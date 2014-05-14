@@ -79,6 +79,8 @@ class Tree < GitObject
   end
 
   def ==(another_tree)
+    return false unless entries.count == another_tree.entries.count
+
     entries.all? do |(name, entry)|
       if (another_entry = another_tree.entries[name])
         entry.class == another_entry.class && entry == another_entry

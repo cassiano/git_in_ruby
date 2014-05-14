@@ -171,23 +171,22 @@ class Commit < GitObject
     cloned_commits_and_trees[sha1][:sha1]
   end
 
-  def ==(another_commit)
-    author == another_commit.author &&
-      committer == another_commit.committer &&
-      subject == another_commit.subject &&
-      tree == another_commit.tree
+  def ancestors_equal?(another_ancestors)
+    another_ancestors = another_ancestors.to_a
+
+    visit_ancestors do |commit, i|
+      puts i if i % 10 == 0
+
+      return false unless commit == another_ancestors[i].last
+    end
+
+    true
   end
 
-  protected
-
-  def parse_data(data)
-    parsed_data = repository.parse_commit_data(data)
-
-    @tree_sha1     = parsed_data[:tree_sha1]
-    @parents_sha1s = parsed_data[:parents_sha1s]
-    @author        = parsed_data[:author]
-    @committer     = parsed_data[:committer]
-    @subject       = parsed_data[:subject]
+  def ==(another_commit)
+    [:author, :committer, :subject, :tree].all? do |method|
+      self.send(method) == another_commit.send(method)
+    end
   end
 
   # Visits all commit ancestors, starting by itself, yielding the supplied block (if any) the current commit and a sequential index.
@@ -220,5 +219,17 @@ class Commit < GitObject
     visited
   end
 
-  remember :tree, :parents, :clone_into, :max_parents_count, :ancestors_count, :validate, :==
+  protected
+
+  def parse_data(data)
+    parsed_data = repository.parse_commit_data(data)
+
+    @tree_sha1     = parsed_data[:tree_sha1]
+    @parents_sha1s = parsed_data[:parents_sha1s]
+    @author        = parsed_data[:author]
+    @committer     = parsed_data[:committer]
+    @subject       = parsed_data[:subject]
+  end
+
+  remember :tree, :parents, :clone_into, :max_parents_count, :ancestors_count, :validate, :==, :ancestors_equal?
 end
