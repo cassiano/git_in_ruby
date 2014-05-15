@@ -204,8 +204,8 @@ class Commit < GitObject
   # Visits all commit ancestors, starting by itself, yielding the supplied block (if any) the current commit and a sequential index.
   def visit_ancestors
     index       = 0
-    visit_queue = {}    # We will use hashes instead of arrays (for speed). See: https://gist.github.com/cassiano/c61bf6d553cc0bea15fe
-    visited     = {}
+    visited     = {}    # We will use hashes instead of arrays (for speed). See: https://gist.github.com/cassiano/c61bf6d553cc0bea15fe
+    visit_queue = {}    # Tests show that the visit queue is generally small (maximum size observed was around 70 elements).
 
     # Start scheduling a visit for the node pointed to by 'self'.
     visit_queue[self] = nil     # Notice the hash value itself is not important, but only the key.
