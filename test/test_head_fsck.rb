@@ -183,4 +183,48 @@ class TestFsck < Test::Unit::TestCase
       end
     end
   end
+
+  context 'Cloning and comparing' do
+    setup do
+      @source_repository = MemoryGitRepository.new
+
+      developer = ["Cassiano D'Andrea <cassiano.dandrea@tagview.com.br>", Time.now.utc, '-0300']
+
+      blob1_v1 = @source_repository.create_blob!('blob1 content v1')
+      blob2_v1 = @source_repository.create_blob!('blob2 content v1')
+
+      tree1_v1 = @source_repository.create_tree!([
+        [:blob, 'file1', blob1_v1]
+      ])
+      tree2_v1 = @source_repository.create_tree!([
+        [:blob, 'file2',    blob2_v1],
+        [:tree, 'folder1',  tree1_v1]
+      ])
+
+      commit1 = @source_repository.create_commit!('master', tree2_v1, [], developer, developer, "1st commit")
+
+      blob2_v2 = @source_repository.create_blob!('blob2 content v2')
+      blob3_v1 = @source_repository.create_blob!('blob3 content v1')
+
+      tree2_v2 = @source_repository.create_tree!([
+        [:blob, 'file2',    blob2_v2],
+        [:blob, 'file3',    blob3_v1],
+        [:tree, 'folder1',  tree1_v1]
+      ])
+
+      commit2 = @source_repository.create_commit!('master', tree2_v2, [commit1], developer, developer, "2nd commit")
+    end
+
+    test ':==' do
+      assert_equal @source_repository, @source_repository
+    end
+
+    test ':clone_into' do
+      target_repository = MemoryGitRepository.new
+
+      @source_repository.clone_into target_repository
+
+      assert_equal @source_repository, target_repository
+    end
+  end
 end
