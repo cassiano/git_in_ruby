@@ -98,9 +98,9 @@ class GitObject
     @data = nil if @type == :blob && !load_blob_data?
   end
 
-  def equals?(value, another_value, what)
+  def compare(value, another_value, description)
     (value == another_value).tap do |equals|
-      raise "'#{value}' != '#{another_value}' when comparing '#{what}' in #{self.class.name} with SHA1 #{sha1}" unless equals
+      raise "'#{value}' != '#{another_value}' in '#{description}' of #{self.class.name} with SHA1 #{sha1}" unless equals
     end
   end
 

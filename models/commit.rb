@@ -185,7 +185,7 @@ class Commit < GitObject
 
   def ==(another_commit)
     [:author, :committer, :subject, :tree].all? do |attribute|
-      equals? self.send(attribute), another_commit.send(attribute), attribute
+      compare self.send(attribute), another_commit.send(attribute), attribute
     end
   end
 

@@ -79,14 +79,14 @@ class Tree < GitObject
   end
 
   def ==(another_tree)
-    equals? entries.count,  another_tree.entries.count, 'entries count'
-    equals? entries.keys,   another_tree.entries.keys,  'entries keys'
+    compare entries.count,  another_tree.entries.count, 'entries count'
+    compare entries.keys,   another_tree.entries.keys,  'entries keys'
 
     entries.all? do |(name, entry)|
       another_entry = another_tree.entries[name]
 
-      equals? entry.class,  another_entry.class,  'entry class'
-      equals? entry,        another_entry,        'entry'
+      compare entry.class,  another_entry.class,  'entry class'
+      compare entry,        another_entry,        'entry'
     end
   end
 
