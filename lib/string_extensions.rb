@@ -26,6 +26,7 @@ class String
     force_encoding(find_valid_encoding).encode('UTF-8').unicode_normalize
   end
 
+  # Source: http://en.wikipedia.org/wiki/Unicode_equivalence#Normalization
   def unicode_normalize
     ActiveSupport::Multibyte::Unicode.normalize self
   end
