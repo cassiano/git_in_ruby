@@ -84,6 +84,8 @@ class Commit < GitObject
   #   parents.each_with_index do |parent, i|
   #     compare parent, another_commit.parents[i], "Parent ##{i}"
   #   end
+  #
+  #   true
   # end
 
   #########################
