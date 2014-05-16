@@ -74,6 +74,18 @@ class Commit < GitObject
   #   ([{ sha1: sha1, count: parents.count }] + parents.map(&:max_parents_count)).max { |a, b| a[:count] <=> b[:count] }
   # end
 
+  # def ==(another_commit)
+  #   [:author, :committer, :subject, :tree].all? do |attribute|
+  #     compare self.send(attribute), another_commit.send(attribute), attribute
+  #   end
+  #
+  #   compare parents.count, another_commit.parents.count, 'parent count'
+  #
+  #   parents.each_with_index do |parent, i|
+  #     compare parent, another_commit.parents[i], "Parent ##{i}"
+  #   end
+  # end
+
   #########################
   # Non-recursive versions.
   #########################
@@ -183,11 +195,11 @@ class Commit < GitObject
     true
   end
 
-  def ==(another_commit)
-    [:author, :committer, :subject, :tree].all? do |attribute|
-      compare self.send(attribute), another_commit.send(attribute), attribute
-    end
-  end
+  # def ==(another_commit)
+  #   [:author, :committer, :subject, :tree].all? do |attribute|
+  #     compare self.send(attribute), another_commit.send(attribute), attribute
+  #   end
+  # end
 
   protected
 
