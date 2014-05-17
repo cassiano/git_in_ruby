@@ -6,7 +6,7 @@ class Tree < GitObject
       raise InvalidModeError, "Invalid mode #{mode} in file '#{name}'" unless VALID_MODES[mode]
 
       # Instantiate the object, based on its mode (Blob, Tree, ExecutableFile etc).
-      items.merge name => Object.const_get(VALID_MODES[mode]).find_or_initialize_by_sha1(
+      items.merge name => Object.const_get(VALID_MODES[mode]).find_by_sha1(
         repository, sha1, commit_level: commit_level, load_blob_data: load_blob_data?
       )
     end

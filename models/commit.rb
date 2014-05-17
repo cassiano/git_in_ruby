@@ -2,12 +2,12 @@ class Commit < GitObject
   attr_reader :tree_sha1, :parents_sha1s, :subject, :author, :committer
 
   def tree
-    Tree.find_or_initialize_by_sha1 repository, tree_sha1, commit_level: commit_level, load_blob_data: load_blob_data?
+    Tree.find_by_sha1 repository, tree_sha1, commit_level: commit_level, load_blob_data: load_blob_data?
   end
 
   def parents
     parents_sha1s.map do |sha1|
-      Commit.find_or_initialize_by_sha1 repository, sha1, commit_level: commit_level + 1, load_blob_data: load_blob_data?
+      Commit.find_by_sha1 repository, sha1, commit_level: commit_level + 1, load_blob_data: load_blob_data?
     end
   end
 
@@ -146,14 +146,14 @@ class Commit < GitObject
       # Find the 1st commit which have all parents already cloned (remember that having no parents also satisfy this criteria).
       # Notice that, for performance reasons, the cloned trees are searched in reversed order (so older commits are looked 1st).
       commit_tree_match = cloned_trees.find do |commit_sha1, data|
-        commit = Commit.find_or_initialize_by_sha1(repository, commit_sha1)
+        commit = Commit.find_by_sha1(repository, commit_sha1)
 
         commit.parents.all? { |parent| cloned_commits_and_trees[parent.sha1][:type] == :commit }
       end
 
       assert { !commit_tree_match.nil? }
 
-      next_commit_to_clone = Commit.find_or_initialize_by_sha1(repository, commit_tree_match[0])
+      next_commit_to_clone = Commit.find_by_sha1(repository, commit_tree_match[0])
 
       parents_clones = next_commit_to_clone.parents.map do |parent|
         assert { cloned_commits_and_trees[parent.sha1][:type] == :commit }

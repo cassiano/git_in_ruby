@@ -24,7 +24,7 @@ class GitObject
       valid_modes_by_type[type]
     end
 
-    def find_or_initialize_by_sha1(repository, sha1, options = {})
+    def find_by_sha1(repository, sha1, options = {})
       repository.instances[sha1] ||= new(repository, Sha1Util.standardized_hex_string_sha1(sha1), options)
     end
 

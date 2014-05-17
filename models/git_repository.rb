@@ -18,7 +18,7 @@ class GitRepository
   end
 
   def head_commit(options = {})
-    Commit.find_or_initialize_by_sha1(self, head_commit_sha1, options) if head_commit_sha1
+    Commit.find_by_sha1(self, head_commit_sha1, options) if head_commit_sha1
   end
 
   def head_commit_with_blob_data(options = {})

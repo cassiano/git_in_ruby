@@ -135,7 +135,7 @@ class TestFsck < Test::Unit::TestCase
     context '#changes_introduced_by' do
       test 'shows additions, deletions or changes with no parent' do
         repository = FileSystemGitRepository.new(project_path: File.join(@git_repositories_folder, 'valid_with_merge'))
-        commit     = Commit.find_or_initialize_by_sha1(repository, 'f9cc0ed357a451a0d7a4b429209f7e80a6f83240')
+        commit     = Commit.find_by_sha1(repository, 'f9cc0ed357a451a0d7a4b429209f7e80a6f83240')
 
         assert_equal [
           ["a", :created, [[], "92b0a48"]],
@@ -146,7 +146,7 @@ class TestFsck < Test::Unit::TestCase
 
       test 'shows additions, deletions or changes with a single parent' do
         repository = FileSystemGitRepository.new(project_path: File.join(@git_repositories_folder, 'valid_with_merge'))
-        commit     = Commit.find_or_initialize_by_sha1(repository, 'ddd0c88d5360f5aca066075e45e33caa063f916b')
+        commit     = Commit.find_by_sha1(repository, 'ddd0c88d5360f5aca066075e45e33caa063f916b')
 
         assert_equal [
           ["a", :deleted, ["92b0a48", []]],
@@ -157,14 +157,14 @@ class TestFsck < Test::Unit::TestCase
 
       test 'shows empty changes for usual merge commit' do
         repository = FileSystemGitRepository.new(project_path: File.join(@git_repositories_folder, 'valid_with_merge'))
-        commit     = Commit.find_or_initialize_by_sha1(repository, 'e61ce5cf4178fd9e18f96862e52f192eeaf55b92')
+        commit     = Commit.find_by_sha1(repository, 'e61ce5cf4178fd9e18f96862e52f192eeaf55b92')
 
         assert_equal [], commit.changes_introduced_by
       end
 
       test 'shows additions, deletions or updates for "evil" merge commit' do
         repository = FileSystemGitRepository.new(project_path: File.join(@git_repositories_folder, 'valid_with_merge'))
-        commit     = Commit.find_or_initialize_by_sha1(repository, '56acfdb0b48b42e97c0714c4bd1263b47225acdf')
+        commit     = Commit.find_by_sha1(repository, '56acfdb0b48b42e97c0714c4bd1263b47225acdf')
 
         assert_equal [
           ["c", :deleted, ["a1a8457", []]],
@@ -175,7 +175,7 @@ class TestFsck < Test::Unit::TestCase
 
       test 'shows renames' do
         repository = FileSystemGitRepository.new(project_path: File.join(@git_repositories_folder, 'valid_with_merge'))
-        commit     = Commit.find_or_initialize_by_sha1(repository, 'd07013e585bfc4844ae9e5b890bb4385516c3815')
+        commit     = Commit.find_by_sha1(repository, 'd07013e585bfc4844ae9e5b890bb4385516c3815')
 
         assert_equal [
           ["e -> A/e", :renamed, ["a04c515", "a04c515"]]
