@@ -1,5 +1,3 @@
-require 'fiber'
-
 class Commit < GitObject
   attr_reader :tree_sha1, :parents_sha1s, :subject, :author, :committer
 
@@ -187,47 +185,15 @@ class Commit < GitObject
     cloned_commits_and_trees[sha1][:sha1]
   end
 
-  # def ancestors_equal?(another_commit)
-  #   another_commit_ancestors = another_commit.ancestors_visitor { |commit| commit }.to_a
-  #
-  #   ancestors_visitor do |commit, i|
-  #     puts i if i % 10 == 0
-  #
-  #     return false unless commit == another_commit_ancestors[i].last
-  #   end
-  #
-  #   true
-  # end
-
-  # def ancestors_equal?(another_commit)
-  #   fiber         = fiber_ancestors_visitor
-  #   another_fiber = another_commit.fiber_ancestors_visitor
-  #
-  #   loop do
-  #     data         = fiber.resume
-  #     another_data = another_fiber.resume
-  #
-  #     return true   if Hash === data && Hash === another_data
-  #     return false  if Hash === data || Hash === another_data
-  #
-  #     commit         = data[0]
-  #     another_commit = another_data[0]
-  #
-  #     return false unless commit == another_commit
-  #   end
-  # end
-
   def ancestors_equal?(another_commit)
-    another_fiber = another_commit.fiber_ancestors_visitor
+    another_commit_iterator = another_commit.ancestors_visitor
 
     ancestors_visitor do |commit, i|
       puts i if i % 10 == 0
 
-      return false unless another_fiber.alive?
+      another_data = another_commit_iterator.next
 
-      another_data = another_fiber.resume
-
-      return false if Hash === another_data
+      return false unless another_data
 
       another_commit = another_data[0]
 
@@ -256,7 +222,10 @@ class Commit < GitObject
   end
 
   # Visits all commit ancestors, starting by itself, yielding the supplied block (if any) the current commit and a sequential index.
+  # If a block is supplied, acts as an internal iterator. Otherwise, an external iterator is returned.
   def ancestors_visitor
+    return enum_for(:ancestors_visitor) if not block_given?
+
     index       = 0
     visited     = {}    # We will use hashes instead of arrays (for speed). See: https://gist.github.com/cassiano/c61bf6d553cc0bea15fe
     visit_queue = {}    # Tests show that the visit queue is generally small (maximum size observed was around 70 elements).
@@ -269,7 +238,7 @@ class Commit < GitObject
       current = visit_queue.shift.first     # Retrieve the oldest key.
 
       # If any block supplied, visit the node.
-      result = yield(current, index) if block_given?
+      result = yield(current, index)
 
       visited[current.sha1] = result
 
@@ -283,38 +252,6 @@ class Commit < GitObject
     end
 
     visited
-  end
-
-  # Visits all commit ancestors, starting by itself, yielding the supplied block (if any) the current commit and a sequential index.
-  def fiber_ancestors_visitor
-    Fiber.new do
-      index       = 0
-      visited     = {}    # We will use hashes instead of arrays (for speed). See: https://gist.github.com/cassiano/c61bf6d553cc0bea15fe
-      visit_queue = {}    # Tests show that the visit queue is generally small (maximum size observed was around 70 elements).
-
-      # Start scheduling a visit for the node pointed to by 'self'.
-      visit_queue[self] = nil     # Notice the hash value itself is not important, but only the key.
-
-      # Repeat while there are still nodes to be visited.
-      while !visit_queue.empty? do
-        current = visit_queue.shift.first     # Retrieve the oldest key.
-
-        # Visit the node.
-        result = Fiber.yield(current, index)
-
-        visited[current.sha1] = result
-
-        # Schedule a visit for each of the current node's parent.
-        current.parents.each do |parent|
-          # But do it only if node has not yet been visited nor already marked for visit (in the visit queue).
-          visit_queue[parent] = nil unless visit_queue.has_key?(parent) || visited.has_key?(parent.sha1)
-        end
-
-        index += 1
-      end
-
-      visited
-    end
   end
 
   remember :tree, :parents, :clone_into, :max_parents_count, :ancestors_count, :validate, :==, :ancestors_equal?
