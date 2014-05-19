@@ -185,6 +185,8 @@ class Commit < GitObject
     cloned_commits_and_trees[sha1][:sha1]
   end
 
+  # Notice the combination of an internal and an external iterator. The same task could be accomplished with 2 external iterators as well,
+  # with (possibly) a little more code.
   def ancestors_equal?(another_commit)
     another_commit_iterator = another_commit.ancestors_visitor
 
@@ -207,18 +209,6 @@ class Commit < GitObject
     [:author, :committer, :subject, :tree].all? do |attribute|
       compare self.send(attribute), another_commit.send(attribute), attribute
     end
-  end
-
-  protected
-
-  def parse_data(data)
-    parsed_data = repository.parse_commit_data(data)
-
-    @tree_sha1     = parsed_data[:tree_sha1]
-    @parents_sha1s = parsed_data[:parents_sha1s]
-    @author        = parsed_data[:author]
-    @committer     = parsed_data[:committer]
-    @subject       = parsed_data[:subject]
   end
 
   # Visits all commit ancestors, starting by itself, yielding the supplied block (if any) the current commit and a sequential index.
@@ -252,6 +242,18 @@ class Commit < GitObject
     end
 
     visited
+  end
+
+  protected
+
+  def parse_data(data)
+    parsed_data = repository.parse_commit_data(data)
+
+    @tree_sha1     = parsed_data[:tree_sha1]
+    @parents_sha1s = parsed_data[:parents_sha1s]
+    @author        = parsed_data[:author]
+    @committer     = parsed_data[:committer]
+    @subject       = parsed_data[:subject]
   end
 
   remember :tree, :parents, :clone_into, :max_parents_count, :ancestors_count, :validate, :==, :ancestors_equal?
