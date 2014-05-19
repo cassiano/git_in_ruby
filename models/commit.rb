@@ -185,24 +185,36 @@ class Commit < GitObject
     cloned_commits_and_trees[sha1][:sha1]
   end
 
-  # Notice the combination of an internal and an external iterator. The same task could be accomplished with 2 external iterators as well,
-  # with (possibly) a little more code.
+  # # Notice the combination of an internal and an external iterator. The same task could also be accomplished with 2 external iterators.
+  # def ancestors_equal?(another_commit)
+  #   another_commit_iterator = another_commit.ancestors_visitor
+  #
+  #   ancestors_visitor do |commit, i|
+  #     puts i if i % 10 == 0
+  #
+  #     return false unless (another_data = get_next_iterator_value(another_commit_iterator))
+  #     return false unless commit == another_data[0]
+  #   end
+  #
+  #   true
+  # end
+
   def ancestors_equal?(another_commit)
+    commit_iterator         = ancestors_visitor
     another_commit_iterator = another_commit.ancestors_visitor
 
-    ancestors_visitor do |commit, i|
+    commit1_data, commit2_data = get_next_iterator_value(commit_iterator) get_next_iterator_value(another_commit_iterator)
+
+    while commit1_data && commit2_data do
+      i = commit1_data[1]
       puts i if i % 10 == 0
 
-      another_data = another_commit_iterator.next
+      return false unless commit1_data[0] == commit2_data[0]
 
-      return false unless another_data
-
-      another_commit = another_data[0]
-
-      return false unless commit == another_commit
+      commit1_data, commit2_data = get_next_iterator_value(commit_iterator) get_next_iterator_value(another_commit_iterator)
     end
 
-    true
+    !commit1_data && !commit2_data
   end
 
   def ==(another_commit)
@@ -254,6 +266,14 @@ class Commit < GitObject
     @author        = parsed_data[:author]
     @committer     = parsed_data[:committer]
     @subject       = parsed_data[:subject]
+  end
+
+  def get_next_iterator_value(iterator, default = nil)
+    begin
+      iterator.next
+    rescue StopIteration
+      default
+    end
   end
 
   remember :tree, :parents, :clone_into, :max_parents_count, :ancestors_count, :validate, :==, :ancestors_equal?
