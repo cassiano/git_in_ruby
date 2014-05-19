@@ -1,3 +1,5 @@
+require 'fiber'
+
 class Commit < GitObject
   attr_reader :tree_sha1, :parents_sha1s, :subject, :author, :committer
 
@@ -218,20 +220,18 @@ class Commit < GitObject
   def ancestors_equal?(another_commit)
     another_fiber = another_commit.fiber_ancestors_visitor
 
-    begin
-      ancestors_visitor do |commit, i|
-        puts i if i % 10 == 0
+    ancestors_visitor do |commit, i|
+      puts i if i % 10 == 0
 
-        another_data = another_fiber.resume
+      return false unless another_fiber.alive?
 
-        return false if Hash === another_data
+      another_data = another_fiber.resume
 
-        another_commit = another_data[0]
+      return false if Hash === another_data
 
-        return false unless commit == another_commit
-      end
-    rescue FiberError
-      false
+      another_commit = another_data[0]
+
+      return false unless commit == another_commit
     end
 
     true
