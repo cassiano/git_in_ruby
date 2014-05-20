@@ -185,37 +185,44 @@ class Commit < GitObject
     cloned_commits_and_trees[sha1][:sha1]
   end
 
-  # # Notice the combination of an internal and an external iterator. The same task could also be accomplished with 2 external iterators.
-  # def ancestors_equal?(another_commit)
-  #   another_commit_iterator = another_commit.ancestors_visitor
-  #
-  #   ancestors_visitor do |commit, i|
-  #     puts i if i % 10 == 0
-  #
-  #     return false unless (another_data = get_next_iterator_value(another_commit_iterator))
-  #     return false unless commit == another_data[0]
-  #   end
-  #
-  #   true
-  # end
-
+  # Notice the combination of an internal iterator (for the current commit's ancestors) and an external one (for the other commit's ancestors).
   def ancestors_equal?(another_commit)
-    commit_iterator         = ancestors_visitor
-    another_commit_iterator = another_commit.ancestors_visitor
+    another_commit_iterator = another_commit.ancestors_visitor    # External iterator.
 
-    commit1_data, commit2_data = get_next_iterator_value(commit_iterator) get_next_iterator_value(another_commit_iterator)
-
-    while commit1_data && commit2_data do
-      i = commit1_data[1]
+    ancestors_visitor do |commit, i|                              # Internal iterator.
       puts i if i % 10 == 0
 
-      return false unless commit1_data[0] == commit2_data[0]
-
-      commit1_data, commit2_data = get_next_iterator_value(commit_iterator) get_next_iterator_value(another_commit_iterator)
+      return false unless (another_commit_ancestor_data = get_next_value_from(another_commit_iterator))
+      return false unless commit == another_commit_ancestor_data[0]
     end
 
-    !commit1_data && !commit2_data
+    true
   end
+
+  # # Same method, now using 2 external iterators. Notice the more complex code logic.
+  # def ancestors_equal?(another_commit)
+  #   commit_iterator         = ancestors_visitor
+  #   another_commit_iterator = another_commit.ancestors_visitor
+  #
+  #   commit1_data = commit2_data = nil
+  #
+  #   loop do
+  #     # Get first/next values.
+  #     commit1_data = get_next_value_from(commit_iterator)
+  #     commit2_data = get_next_value_from(another_commit_iterator)
+  #
+  #     # Stop the loop when there are no more commits on either side.
+  #     break unless commit1_data && commit2_data
+  #
+  #     i = commit1_data[1]
+  #     puts i if i % 10 == 0
+  #
+  #     return false unless commit1_data[0] == commit2_data[0]
+  #   end
+  #
+  #   # The ancestors are considered equal only if both iterators are "empty" (i.e. have no more commits to process).
+  #   !commit1_data && !commit2_data
+  # end
 
   def ==(another_commit)
     [:author, :committer, :subject, :tree].all? do |attribute|
@@ -268,7 +275,7 @@ class Commit < GitObject
     @subject       = parsed_data[:subject]
   end
 
-  def get_next_iterator_value(iterator, default = nil)
+  def get_next_value_from(iterator, default = nil)
     begin
       iterator.next
     rescue StopIteration
