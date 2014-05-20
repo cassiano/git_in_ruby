@@ -144,7 +144,7 @@ class Commit < GitObject
       puts "#{cloned_trees.count} trees still pending"
 
       # Find the 1st commit which have all parents already cloned (remember that having no parents also satisfy this criteria).
-      # Notice that, for performance reasons, the cloned trees are searched in reversed order (so older commits are looked 1st).
+      # Notice that, for performance reasons, the cloned trees are searched in reversed order, so older commits are looked first.
       commit_tree_match = cloned_trees.find do |commit_sha1, data|
         commit = Commit.find_by_sha1(repository, commit_sha1)
 
@@ -231,7 +231,7 @@ class Commit < GitObject
   end
 
   # Visits all commit ancestors, starting by itself, yielding the supplied block (if any) the current commit and a sequential index.
-  # If a block is supplied, acts as an internal iterator. Otherwise, an external iterator is returned.
+  # If a block is provided, acts as an internal iterator. Otherwise, an external iterator is returned.
   def ancestors_visitor
     return enum_for(:ancestors_visitor) if not block_given?
 
