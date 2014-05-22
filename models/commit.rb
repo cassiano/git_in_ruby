@@ -192,8 +192,7 @@ class Commit < GitObject
     ancestors_visitor do |commit, i|                              # Internal iterator.
       puts i if i % 10 == 0
 
-      return false unless (another_commit_ancestor_data = get_next_value_from(another_commit_iterator))
-      return false unless commit == another_commit_ancestor_data[0]
+      return false unless (ancestor_data = get_next_value_from(another_commit_iterator)) && commit == ancestor_data[0]
     end
 
     true
