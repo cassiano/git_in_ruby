@@ -4,7 +4,7 @@ class CreateDbFilenames < ActiveRecord::Migration
       t.column :name, :string, null: false
     end
 
-    add_index :db_filenames, :name, :unique => true
+    add_index :db_filenames, :name, unique: true
   end
 
   def self.down

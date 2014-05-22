@@ -4,7 +4,7 @@ class CreateDbFilemodes < ActiveRecord::Migration
       t.column :mode, :string, limit: 6, null: false
     end
 
-    add_index :db_filemodes, :mode, :unique => true
+    add_index :db_filemodes, :mode, unique: true
   end
 
   def self.down

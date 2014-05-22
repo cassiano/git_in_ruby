@@ -23,8 +23,8 @@ class CreateDbObjects < ActiveRecord::Migration
 
     add_foreign_key :db_objects, :db_objects, column: :commit_tree_id
 
-    add_index :db_objects, :sha1,             :unique => true
-    add_index :db_objects, :source_sha1, :unique => true
+    add_index :db_objects, :sha1,        unique: true
+    add_index :db_objects, :source_sha1, unique: true
   end
 
   def self.down

@@ -5,7 +5,7 @@ class CreateDbCommitParents < ActiveRecord::Migration
       t.belongs_to :parent, null: false
     end
 
-    add_index :db_commit_parents, [:commit_id, :parent_id], :unique => true
+    add_index :db_commit_parents, [:commit_id, :parent_id], unique: true
 
     add_foreign_key :db_commit_parents, :db_objects, column: :commit_id
     add_foreign_key :db_commit_parents, :db_objects, column: :parent_id
