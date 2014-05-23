@@ -1,13 +1,18 @@
 class MyEnumerator
-  attr_reader :method, :method_args
+  attr_reader :method, :method_args, :cache
 
   def initialize(method, *method_args)
     @method      = method
     @method_args = method_args
+    @cache       = []
   end
 
   def next
-    fiber.resume
+    if cache.empty?
+      fiber.resume
+    else
+      cache.shift
+    end
   end
 
   def fiber
@@ -22,10 +27,11 @@ class MyEnumerator
 
   def rewind
     @fiber = nil
+    @cache = []
   end
 
   def count
-    previous_fiber = fiber
+    previous_state = [fiber, cache]
     rewind
 
     item_count = 0
@@ -34,9 +40,15 @@ class MyEnumerator
       item_count += 1
     end
 
-    @fiber = previous_fiber
+    @fiber, @cache = previous_state
 
     item_count
+  end
+
+  def peek
+    cache << self.next if cache.empty?
+
+    cache.first
   end
 end
 
