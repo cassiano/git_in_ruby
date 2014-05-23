@@ -1,9 +1,9 @@
 class MyEnumerator
-  attr_reader :method, :args
+  attr_reader :method, :method_args
 
-  def initialize(method, *args)
-    @method = method
-    @args   = args
+  def initialize(method, *method_args)
+    @method      = method
+    @method_args = method_args
   end
 
   def next
@@ -12,8 +12,8 @@ class MyEnumerator
 
   def fiber
     @fiber ||= Fiber.new do
-      method.call(*args) do |*args2|
-        Fiber.yield *args2
+      method.call(*method_args) do |*args|
+        Fiber.yield *args
       end
 
       raise StopIteration, 'iteration reached an end'
