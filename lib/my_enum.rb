@@ -40,7 +40,7 @@ class MyEnumerator
   end
 end
 
-class Object
+module Kernel
   def my_enum_for(method_name, *args)
     MyEnumerator.new method(method_name), *args
   end
