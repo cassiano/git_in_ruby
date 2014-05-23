@@ -1,4 +1,4 @@
-class MyEnum
+class MyEnumerator
   attr_reader :method, :args
 
   def initialize(method, *args)
@@ -42,6 +42,6 @@ end
 
 class Object
   def my_enum_for(method_name, *args)
-    MyEnum.new method(method_name), *args
+    MyEnumerator.new method(method_name), *args
   end
 end
