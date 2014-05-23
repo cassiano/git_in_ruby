@@ -12,7 +12,7 @@ class CreateDbTreeEntries < ActiveRecord::Migration
     add_foreign_key :db_tree_entries, :db_filenames,  column: :filename_id
     add_foreign_key :db_tree_entries, :db_filemodes,  column: :filemode_id
 
-    add_index :db_tree_entries, [:tree_id, :filename_id], :unique => true
+    add_index :db_tree_entries, [:tree_id, :filename_id], unique: true
   end
 
   def self.down

@@ -5,7 +5,7 @@ class CreateDbBranches < ActiveRecord::Migration
       t.column :sha1, :string, limit: 40, null: false
     end
 
-    add_index :db_branches, :name, :unique => true
+    add_index :db_branches, :name, unique: true
   end
 
   def self.down
