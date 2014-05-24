@@ -27,7 +27,7 @@
   end
 
   def previous
-    raise StopIteration, 'iteration reached an end' if cache[:current_index] < 1
+    raise StopIteration, 'iteration reached an end' if cache[:current_index] == -1
 
     cache[:current_index] -= 1
 
@@ -39,7 +39,7 @@
   end
 
   def count
-    previous_cache_index = cache[:current_index]
+    saved_cache_index = cache[:current_index]
     rewind
 
     item_count = 0
@@ -48,7 +48,7 @@
       item_count += 1
     end
 
-    cache[:current_index] = previous_cache_index
+    cache[:current_index] = saved_cache_index
 
     item_count
   end
@@ -59,7 +59,7 @@
       cache[:current_index] -= 1
     end
 
-    cache[:data][cache[:current_index] + 1]
+    cache[:data][ cache[:current_index] + 1 ]
   end
 
   def rewind
@@ -82,7 +82,7 @@
   def add_to_cache(value)
     cache[:current_index] += 1
 
-    cache[:data][cache[:current_index]] = value
+    cache[:data][ cache[:current_index] ] = value
   end
 
   def reset_cache
@@ -98,7 +98,9 @@
   end
 
   def current_cache_value
-    cache[:data][cache[:current_index]]
+    return nil if cache[:current_index] == -1
+
+    cache[:data][ cache[:current_index] ]
   end
 
   def next_value_not_in_cache?
