@@ -67,6 +67,19 @@
     nil
   end
 
+  def first
+    rewind
+    self.next
+  end
+
+  def last
+    loop do
+      self.next
+    end
+
+    current
+  end
+
   private
 
   def fiber
