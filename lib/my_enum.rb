@@ -1,19 +1,73 @@
-class MyEnumerator
+ require 'fiber'
+
+ class MyEnumerator
   attr_reader :method, :method_args, :cache
 
   def initialize(method, *method_args)
     @method      = method
     @method_args = method_args
-    @cache       = []
+
+    reset_cache
   end
 
   def next
-    if cache.empty?
-      fiber.resume
+    if next_value_not_in_cache?
+      if fiber.alive?
+        fiber.resume.tap do |value|
+          add_to_cache value
+        end
+      else
+        raise StopIteration, 'iteration reached an end'
+      end
     else
-      cache.shift
+      cache[:current_index] += 1
+
+      current_cache_value
     end
   end
+
+  def previous
+    raise StopIteration, 'iteration reached an end' if cache[:current_index] < 1
+
+    cache[:current_index] -= 1
+
+    current_cache_value
+  end
+
+  def current
+    current_cache_value
+  end
+
+  def count
+    previous_cache_index = cache[:current_index]
+    rewind
+
+    item_count = 0
+    loop do
+      self.next   # Remember: 'next' is a reserved word. Use 'self.next' instead!
+      item_count += 1
+    end
+
+    cache[:current_index] = previous_cache_index
+
+    item_count
+  end
+
+  def peek
+    if next_value_not_in_cache?
+      self.next
+      cache[:current_index] -= 1
+    end
+
+    cache[:data][cache[:current_index] + 1]
+  end
+
+  def rewind
+    reset_cache_index
+    nil
+  end
+
+  private
 
   def fiber
     @fiber ||= Fiber.new do
@@ -25,30 +79,30 @@ class MyEnumerator
     end
   end
 
-  def rewind
-    @fiber = nil
-    @cache = []
+  def add_to_cache(value)
+    cache[:current_index] += 1
+
+    cache[:data][cache[:current_index]] = value
   end
 
-  def count
-    previous_state = [fiber, cache]
-    rewind
+  def reset_cache
+    @cache ||= {}
 
-    item_count = 0
-    loop do
-      self.next   # Remember: 'next' is a reserved word. Use 'self.next' instead!
-      item_count += 1
-    end
+    cache[:data] = []
 
-    @fiber, @cache = previous_state
-
-    item_count
+    reset_cache_index
   end
 
-  def peek
-    cache << self.next if cache.empty?
+  def reset_cache_index
+    cache[:current_index] = -1
+  end
 
-    cache.first
+  def current_cache_value
+    cache[:data][cache[:current_index]]
+  end
+
+  def next_value_not_in_cache?
+    cache[:current_index] + 1 > cache[:data].count - 1
   end
 end
 
