@@ -6,12 +6,13 @@
   def initialize(method, *method_args)
     @method      = method
     @method_args = method_args
+    @cache       = {}
 
-    reset_cache
+    initialize_or_reset_cache
   end
 
   def next
-    if next_value_not_in_cache?
+    if !next_value_in_cache?
       if fiber.alive?
         fiber.resume.tap do |value|
           add_to_cache value
@@ -27,7 +28,7 @@
   end
 
   def previous
-    raise StopIteration, 'iteration reached an end' if cache[:current_index] == -1
+    raise StopIteration, 'iteration reached an end' if !valid_cache_index?
 
     cache[:current_index] -= 1
 
@@ -54,7 +55,7 @@
   end
 
   def peek
-    if next_value_not_in_cache?
+    if !next_value_in_cache?
       self.next
       cache[:current_index] -= 1
     end
@@ -80,6 +81,24 @@
     current
   end
 
+  def [](index)
+    raise 'Invalid index' unless index >= 0
+
+    begin
+      if index < cache[:data].count
+        cache[:current_index] = index
+      else
+        (index - cache[:data].count + 1).times do
+          self.next
+        end
+      end
+
+      current_cache_value
+    rescue StopIteration
+      raise 'Invalid index'
+    end
+  end
+
   private
 
   def fiber
@@ -98,9 +117,7 @@
     cache[:data][ cache[:current_index] ] = value
   end
 
-  def reset_cache
-    @cache ||= {}
-
+  def initialize_or_reset_cache
     cache[:data] = []
 
     reset_cache_index
@@ -110,14 +127,18 @@
     cache[:current_index] = -1
   end
 
+  def valid_cache_index?
+    cache[:current_index] != -1
+  end
+
   def current_cache_value
-    return nil if cache[:current_index] == -1
+    return nil if !valid_cache_index?
 
     cache[:data][ cache[:current_index] ]
   end
 
-  def next_value_not_in_cache?
-    cache[:current_index] + 1 > cache[:data].count - 1
+  def next_value_in_cache?
+    cache[:current_index] + 1 <= cache[:data].count - 1
   end
 end
 
