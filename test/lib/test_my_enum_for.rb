@@ -8,7 +8,7 @@ class TestMyEnumFor < Test::Unit::TestCase
   def iterator(total_iterations)
     return my_enum_for(:iterator, total_iterations) if !block_given?
 
-    total_iterations.times do |i|
+    total_iterations.times.map do |i|
       yield i ** 2
     end
   end
@@ -89,6 +89,14 @@ class TestMyEnumFor < Test::Unit::TestCase
 
       @my_enum.next
       assert_equal 0, @my_enum.current
+    end
+
+    test 'result is saved upon termination' do
+      loop do
+        @my_enum.next
+      end
+
+      assert_equal (0..TOTAL_ITERATIONS - 1).map { |i| [i ** 2] }, @my_enum.result
     end
   end
 end

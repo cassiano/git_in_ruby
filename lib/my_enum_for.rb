@@ -3,12 +3,13 @@ require 'fiber'
 class InvalidMyEnumeratorIndex < StandardError; end
 
 class MyEnumerator
-  attr_reader :method, :method_args, :cache
+  attr_reader :method, :method_args, :cache, :result
 
   def initialize(method, *method_args)
     @method      = method
     @method_args = method_args
     @cache       = {}
+    @result = nil
 
     initialize_or_reset_cache
   end
@@ -109,8 +110,10 @@ class MyEnumerator
 
   def fiber
     @fiber ||= Fiber.new do
-      method.call(*method_args) do |*args|
-        Fiber.yield *args
+      @result = method.call(*method_args) do |*args|
+        args.tap do
+          Fiber.yield *args
+        end
       end
 
       raise StopIteration, 'iteration reached an end'
