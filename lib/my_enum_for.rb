@@ -1,6 +1,8 @@
- require 'fiber'
+require 'fiber'
 
- class MyEnumerator
+class InvalidMyEnumeratorIndex < StandardError; end
+
+class MyEnumerator
   attr_reader :method, :method_args, :cache
 
   def initialize(method, *method_args)
@@ -82,7 +84,7 @@
   end
 
   def [](index)
-    raise 'Invalid index' unless index >= 0
+    raise InvalidMyEnumeratorIndex, 'negative indices not allowed' unless index >= 0
 
     begin
       if index < cache[:data].count
@@ -99,7 +101,7 @@
 
       current
     rescue StopIteration
-      raise 'Invalid index'
+      raise InvalidMyEnumeratorIndex, 'maximum allowed index exceeded'
     end
   end
 

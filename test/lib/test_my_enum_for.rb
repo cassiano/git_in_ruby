@@ -60,6 +60,18 @@ class TestMyEnumFor < Test::Unit::TestCase
       end
     end
 
+    test '#[i] does not allow negative indices' do
+      assert_raise InvalidMyEnumeratorIndex do
+        @my_enum[-1]
+      end
+    end
+
+    test '#[i] does not allow indices past the last element' do
+      assert_raise InvalidMyEnumeratorIndex do
+        @my_enum[@my_enum.count]
+      end
+    end
+
     test '#peek returns the next element, but without moving the enumerator forward' do
       TOTAL_ITERATIONS.times do |i|
         10.times { assert_equal i ** 2, @my_enum.peek }
