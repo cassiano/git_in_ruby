@@ -88,6 +88,10 @@
       if index < cache[:data].count
         cache[:current_index] = index
       else
+        # Position the (cache) index at the last cached element.
+        cache[:current_index] = cache[:data].count - 1
+
+        # Walk the remaining elements.
         (index - cache[:data].count + 1).times do
           self.next
         end
