@@ -93,7 +93,7 @@
         end
       end
 
-      current_cache_value
+      current
     rescue StopIteration
       raise 'Invalid index'
     end
