@@ -54,7 +54,7 @@ class TestMyEnumFor < Test::Unit::TestCase
       end
     end
 
-    context 'my_enum_for returns an enumerator-like object' do
+    context 'returns an enumerator-like object' do
       TOTAL_ITERATIONS = 1000
 
       def iterator(total_iterations)
