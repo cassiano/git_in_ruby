@@ -149,9 +149,7 @@ class MyEnumerator
   end
 
   def current_cache_value
-    return nil if !valid_cache_index?
-
-    cache[cache_index]
+    cache[cache_index] if valid_cache_index?
   end
 
   def next_value_in_cache?
