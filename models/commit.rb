@@ -232,7 +232,7 @@ class Commit < GitObject
   # Visits all commit ancestors, starting by itself, yielding the supplied block (if any) the current commit and a sequential index.
   # If a block is provided, acts as an internal iterator. Otherwise, an external iterator is returned.
   def ancestors_visitor
-    # The :my_enum_for method was implemented just for fun! See 'lib/my_enum.rb'.
+    # The :my_enum_for method was implemented just for fun! We could have simply used :enum_for instead. See 'lib/my_enum_for.rb' for details.
     return my_enum_for(:ancestors_visitor) if not block_given?
 
     index       = 0
