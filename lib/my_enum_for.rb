@@ -4,12 +4,12 @@ class InvalidMyEnumeratorIndex < StandardError; end
 
 class MyEnumerator
   attr_reader :method, :method_args, :cache, :result
+  attr_accessor :cache_index
 
   def initialize(method, *method_args)
     @method      = method
     @method_args = method_args
-    @cache       = {}
-    @result = nil
+    @result      = nil
 
     initialize_or_reset_cache
   end
@@ -24,8 +24,7 @@ class MyEnumerator
         raise StopIteration, 'iteration reached an end'
       end
     else
-      cache[:current_index] += 1
-
+      inc_cache_index
       current_cache_value
     end
   end
@@ -33,8 +32,7 @@ class MyEnumerator
   def previous
     raise StopIteration, 'iteration reached an end' if !valid_cache_index?
 
-    cache[:current_index] -= 1
-
+    dec_cache_index
     current_cache_value
   end
 
@@ -43,16 +41,21 @@ class MyEnumerator
   end
 
   def count
-    saved_cache_index = cache[:current_index]
+    # Save the current cache index.
+    saved_cache_index = cache_index
+
     rewind
 
     item_count = 0
+
     loop do
       self.next   # Remember: 'next' is a reserved word. Use 'self.next' instead!
+
       item_count += 1
     end
 
-    cache[:current_index] = saved_cache_index
+    # Restore the previous cache index.
+    self.cache_index = saved_cache_index
 
     item_count
   end
@@ -60,10 +63,10 @@ class MyEnumerator
   def peek
     if !next_value_in_cache?
       self.next
-      cache[:current_index] -= 1
+      dec_cache_index
     end
 
-    cache[:data][ cache[:current_index] + 1 ]
+    cache[cache_index + 1]
   end
 
   def rewind
@@ -88,14 +91,14 @@ class MyEnumerator
     raise InvalidMyEnumeratorIndex, 'negative indices not allowed' unless index >= 0
 
     begin
-      if index < cache[:data].count
-        cache[:current_index] = index
+      if index < cache.count
+        self.cache_index = index
       else
         # Position the (cache) index at the last cached element.
-        cache[:current_index] = cache[:data].count - 1
+        self.cache_index = cache.count - 1
 
         # Walk the remaining elements.
-        (index - cache[:data].count + 1).times do
+        (index - cache.count + 1).times do
           self.next
         end
       end
@@ -121,33 +124,39 @@ class MyEnumerator
   end
 
   def add_to_cache(value)
-    cache[:current_index] += 1
+    inc_cache_index
 
-    cache[:data][ cache[:current_index] ] = value
+    cache[cache_index] = value
   end
 
   def initialize_or_reset_cache
-    cache[:data] = []
+    @cache = []
 
     reset_cache_index
   end
 
   def reset_cache_index
-    cache[:current_index] = -1
+    self.cache_index = -1
+  end
+
+  def inc_cache_index
+    self.cache_index += 1
+  end
+
+  def dec_cache_index
+    self.cache_index -= 1
   end
 
   def valid_cache_index?
-    cache[:current_index] != -1
+    cache_index != -1
   end
 
   def current_cache_value
-    return nil if !valid_cache_index?
-
-    cache[:data][ cache[:current_index] ]
+    cache[cache_index] if valid_cache_index?
   end
 
   def next_value_in_cache?
-    cache[:current_index] + 1 <= cache[:data].count - 1
+    cache_index + 1 <= cache.count - 1
   end
 end
 
