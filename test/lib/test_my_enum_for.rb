@@ -172,7 +172,7 @@ class TestMyEnumFor < Test::Unit::TestCase
       test 'return value of iterator method is available upon termination' do
         walk_to_end
 
-        assert_equal (0..TOTAL_ITERATIONS - 1).map { |i| [i ** 2] }, @my_enum.result
+        assert_equal (0..TOTAL_ITERATIONS - 1).map { |i| [i ** 2] }, @my_enum.return_value
       end
     end
   end

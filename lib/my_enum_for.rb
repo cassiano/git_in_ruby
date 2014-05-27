@@ -4,12 +4,12 @@ class InvalidMyEnumeratorIndex < StandardError; end
 
 class MyEnumerator
   attr_reader :method, :method_args, :cache
-  attr_accessor :cache_index, :result
+  attr_accessor :cache_index, :return_value
 
   def initialize(method, *method_args)
-    @method      = method
-    @method_args = method_args
-    @result      = nil
+    @method       = method
+    @method_args  = method_args
+    @return_value = nil
 
     initialize_or_reset_cache
   end
@@ -113,7 +113,7 @@ class MyEnumerator
 
   def fiber
     @fiber ||= Fiber.new do
-      self.result = method.call(*method_args) do |*args|
+      self.return_value = method.call(*method_args) do |*args|
         args.tap do
           Fiber.yield *args
         end
