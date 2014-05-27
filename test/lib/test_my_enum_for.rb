@@ -65,6 +65,12 @@ class TestMyEnumFor < Test::Unit::TestCase
         end
       end
 
+      def walk_to_end
+        loop do
+          @my_enum.next
+        end
+      end
+
       setup do
         @my_enum = iterator(TOTAL_ITERATIONS)
       end
@@ -75,15 +81,31 @@ class TestMyEnumFor < Test::Unit::TestCase
         end
       end
 
-      test '#previous walks backward' do
-        # Go all the way to the end.
-        loop do
+      test '#next raises an exception when walking past the last element' do
+        walk_to_end
+
+        assert_raise StopIteration do
           @my_enum.next
         end
+      end
+
+      test '#previous walks backward' do
+        walk_to_end
 
         # And now go backward, one by one.
         (TOTAL_ITERATIONS - 1).times do |i|
           assert_equal ((TOTAL_ITERATIONS - i - 1) - 1) ** 2, @my_enum.previous
+        end
+      end
+
+      test '#previous raises an exception when walking past the 1st element' do
+        # Visit 1st element.
+        @my_enum.next
+
+        assert_equal nil, @my_enum.previous
+
+        assert_raise StopIteration do
+          @my_enum.previous
         end
       end
 
@@ -136,9 +158,7 @@ class TestMyEnumFor < Test::Unit::TestCase
       end
 
       test '#rewind moves the enumerator to its initial position' do
-        loop do
-          @my_enum.next
-        end
+        walk_to_end
 
         assert_equal (TOTAL_ITERATIONS - 1) ** 2, @my_enum.current
 
@@ -150,9 +170,7 @@ class TestMyEnumFor < Test::Unit::TestCase
       end
 
       test 'return value of iterator method is available upon termination' do
-        loop do
-          @my_enum.next
-        end
+        walk_to_end
 
         assert_equal (0..TOTAL_ITERATIONS - 1).map { |i| [i ** 2] }, @my_enum.result
       end
