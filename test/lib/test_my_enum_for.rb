@@ -41,16 +41,16 @@ class TestMyEnumFor < Test::Unit::TestCase
         assert_equal 30, my_enum.next
       end
 
-      test 'with n arguments' do
-        def iterator_with_n_arguments(*args)
-          return my_enum_for(:iterator_with_n_arguments, *args) if !block_given?
+      test 'with variable number of arguments' do
+        def iterator_with_variable_number_of_arguments(*args)
+          return my_enum_for(:iterator_with_variable_number_of_arguments, *args) if !block_given?
 
           yield args.inject(:+)
         end
 
-        my_enum = iterator_with_n_arguments(10, 20, 30, 40, 50)
+        my_enum = iterator_with_variable_number_of_arguments(10, 20, 30, 40, 50)
 
-        assert_equal 150, my_enum.next
+        assert_equal [10, 20, 30, 40, 50].inject(:+), my_enum.next
       end
     end
 
@@ -81,7 +81,7 @@ class TestMyEnumFor < Test::Unit::TestCase
         end
       end
 
-      test '#next raises an exception when walking past the last element' do
+      test '#next raises an exception when walking forward past the last element' do
         walk_to_end
 
         assert_raise StopIteration do
@@ -98,11 +98,15 @@ class TestMyEnumFor < Test::Unit::TestCase
         end
       end
 
-      test '#previous raises an exception when walking past the 1st element' do
+      test '#previous raises an exception when called immediately after enumerator creation' do
+        assert_raise StopIteration do
+          @my_enum.previous
+        end
+      end
+
+      test '#previous raises an exception when walking backward past the 1st element' do
         # Visit 1st element.
         @my_enum.next
-
-        assert_equal nil, @my_enum.previous
 
         assert_raise StopIteration do
           @my_enum.previous
@@ -117,7 +121,7 @@ class TestMyEnumFor < Test::Unit::TestCase
         assert_equal (TOTAL_ITERATIONS - 1) ** 2, @my_enum.last
       end
 
-      test '#count returns the total # of elements' do
+      test '#count returns the total number of elements' do
         assert_equal TOTAL_ITERATIONS, @my_enum.count
       end
 
@@ -129,7 +133,11 @@ class TestMyEnumFor < Test::Unit::TestCase
         end
       end
 
-      test '#current returns the current element' do
+      test '#current returns nil when called immediately after enumerator creation' do
+        assert_equal nil, @my_enum.current
+      end
+
+      test '#current returns the current element otherwise' do
         TOTAL_ITERATIONS.times do |i|
           @my_enum.next
 

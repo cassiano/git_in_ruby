@@ -30,7 +30,7 @@ class MyEnumerator
   end
 
   def previous
-    raise StopIteration, 'iteration reached an end' if !valid_cache_index?
+    raise StopIteration, 'iteration reached an end' if cache_index <= 0
 
     dec_cache_index
     current_cache_value
@@ -147,12 +147,8 @@ class MyEnumerator
     self.cache_index -= 1
   end
 
-  def valid_cache_index?
-    cache_index != -1
-  end
-
   def current_cache_value
-    cache[cache_index] if valid_cache_index?
+    cache[cache_index] if cache_index >= 0
   end
 
   def next_value_in_cache?
