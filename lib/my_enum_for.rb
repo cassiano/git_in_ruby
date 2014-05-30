@@ -1,6 +1,7 @@
 require 'fiber'
 
-class InvalidMyEnumeratorIndex < StandardError; end
+class InvalidEnumeratorIndex          < StandardError; end
+class EnumeratorBeforeInitialPosition < StandardError; end
 
 class MyEnumerator
   attr_reader :method, :method_args, :cache
@@ -30,13 +31,16 @@ class MyEnumerator
   end
 
   def previous
-    raise StopIteration, 'iteration reached an end' if cache_index <= 0
+    raise EnumeratorBeforeInitialPosition           if cache_index < 0
+    raise StopIteration, 'iteration reached an end' if cache_index == 0
 
     dec_cache_index
-    current_cache_value
+    current
   end
 
   def current
+    raise EnumeratorBeforeInitialPosition if cache_index < 0
+
     current_cache_value
   end
 
@@ -88,7 +92,7 @@ class MyEnumerator
   end
 
   def [](index)
-    raise InvalidMyEnumeratorIndex, 'negative indices not allowed' unless index >= 0
+    raise InvalidEnumeratorIndex, 'negative indices not allowed' unless index >= 0
 
     begin
       if index < cache.count
@@ -105,7 +109,7 @@ class MyEnumerator
 
       current
     rescue StopIteration
-      raise InvalidMyEnumeratorIndex, 'maximum allowed index exceeded'
+      raise InvalidEnumeratorIndex, 'maximum allowed index exceeded'
     end
   end
 

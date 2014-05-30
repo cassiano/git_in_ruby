@@ -98,8 +98,8 @@ class TestMyEnumFor < Test::Unit::TestCase
         end
       end
 
-      test '#previous raises an exception when called immediately after enumerator creation' do
-        assert_raise StopIteration do
+      test '#previous raises an exception when called before traversing the enumerator' do
+        assert_raise EnumeratorBeforeInitialPosition do
           @my_enum.previous
         end
       end
@@ -133,8 +133,10 @@ class TestMyEnumFor < Test::Unit::TestCase
         end
       end
 
-      test '#current returns nil when called immediately after enumerator creation' do
-        assert_equal nil, @my_enum.current
+      test '#current raises an exception when called before traversing the enumerator' do
+        assert_raise EnumeratorBeforeInitialPosition do
+          @my_enum.current
+        end
       end
 
       test '#current returns the current element otherwise' do
@@ -146,13 +148,13 @@ class TestMyEnumFor < Test::Unit::TestCase
       end
 
       test '#[i] does not allow negative indices' do
-        assert_raise InvalidMyEnumeratorIndex do
+        assert_raise InvalidEnumeratorIndex do
           @my_enum[-1]
         end
       end
 
       test '#[i] does not allow indices past the last element' do
-        assert_raise InvalidMyEnumeratorIndex do
+        assert_raise InvalidEnumeratorIndex do
           @my_enum[@my_enum.count]
         end
       end
@@ -167,14 +169,12 @@ class TestMyEnumFor < Test::Unit::TestCase
 
       test '#rewind moves the enumerator to its initial position' do
         walk_to_end
-
         assert_equal (TOTAL_ITERATIONS - 1) ** 2, @my_enum.current
 
         @my_enum.rewind
-        assert_equal nil, @my_enum.current
-
-        @my_enum.next
-        assert_equal 0, @my_enum.current
+        assert_raise EnumeratorBeforeInitialPosition do
+          @my_enum.current
+        end
       end
 
       test 'return value of iterator method is available upon termination' do
