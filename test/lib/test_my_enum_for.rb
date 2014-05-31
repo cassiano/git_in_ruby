@@ -48,14 +48,16 @@ class TestMyEnumFor < Test::Unit::TestCase
           yield args.inject(:+)
         end
 
-        my_enum = iterator_with_variable_number_of_arguments(10, 20, 30, 40, 50)
+        args = (1..100).to_a
 
-        assert_equal [10, 20, 30, 40, 50].inject(:+), my_enum.next
+        my_enum = iterator_with_variable_number_of_arguments(*args)
+
+        assert_equal args.inject(:+), my_enum.next
       end
     end
 
     context 'returns an enumerator-like object' do
-      TOTAL_ITERATIONS = 1000
+      TOTAL_ITERATIONS = 100
 
       def iterator(total_iterations)
         return my_enum_for(:iterator, total_iterations) if !block_given?
