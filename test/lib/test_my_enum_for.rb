@@ -101,7 +101,7 @@ class TestMyEnumFor < Test::Unit::TestCase
       end
 
       test '#previous raises an exception when called before traversing the enumerator' do
-        assert_raise EnumeratorBeforeInitialPosition do
+        assert_raise InvalidEnumeratorIndex do
           @my_enum.previous
         end
       end
@@ -136,7 +136,7 @@ class TestMyEnumFor < Test::Unit::TestCase
       end
 
       test '#current raises an exception when called before traversing the enumerator' do
-        assert_raise EnumeratorBeforeInitialPosition do
+        assert_raise InvalidEnumeratorIndex do
           @my_enum.current
         end
       end
@@ -174,7 +174,7 @@ class TestMyEnumFor < Test::Unit::TestCase
         assert_equal (TOTAL_ITERATIONS - 1) ** 2, @my_enum.current
 
         @my_enum.rewind
-        assert_raise EnumeratorBeforeInitialPosition do
+        assert_raise InvalidEnumeratorIndex do
           @my_enum.current
         end
       end

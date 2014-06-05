@@ -1,7 +1,6 @@
 require 'fiber'
 
-class InvalidEnumeratorIndex          < StandardError; end
-class EnumeratorBeforeInitialPosition < StandardError; end
+class InvalidEnumeratorIndex < StandardError; end
 
 class MyEnumerator
   attr_reader :method, :method_args, :cache
@@ -31,7 +30,7 @@ class MyEnumerator
   end
 
   def previous
-    raise EnumeratorBeforeInitialPosition           if cache_index < 0
+    raise InvalidEnumeratorIndex, 'previous element not available (negative index)' if cache_index < 0
     raise StopIteration, 'iteration reached an end' if cache_index == 0
 
     dec_cache_index
@@ -39,7 +38,7 @@ class MyEnumerator
   end
 
   def current
-    raise EnumeratorBeforeInitialPosition if cache_index < 0
+    raise InvalidEnumeratorIndex, 'current element not available (negative index)' if cache_index < 0
 
     current_cache_value
   end
