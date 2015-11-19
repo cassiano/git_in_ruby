@@ -233,7 +233,7 @@ class Commit < GitObject
   # If a block is provided, acts as an internal iterator. Otherwise, an external iterator is returned.
   def ancestors_visitor
     # The :my_enum_for method was implemented just for fun! We could have simply used :enum_for instead. See 'lib/my_enum_for.rb' for details.
-    return my_enum_for(:ancestors_visitor) if not block_given?
+    return my_enum_for(:ancestors_visitor) unless block_given?
 
     index       = 0
     visited     = {}    # We will use hashes instead of arrays (for speed). See: https://gist.github.com/cassiano/c61bf6d553cc0bea15fe
